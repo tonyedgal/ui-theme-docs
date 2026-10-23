@@ -90,44 +90,43 @@ export interface SiteConfig {
 }
 
 const brandPresets: Record<BrandPresetKey, BrandConfig> = {
-  // A warm neutral foundation with restrained green and violet accents.
+  // UI-Theme website palette (apps/ui-theme-web/app/global.css), converted from
+  // OKLCH to sRGB hex. Accent uses the website's --primary-ink so links stay
+  // readable on the near-white canvas; the mint --primary is kept for the ring.
   primary: {
     light: {
-      background: '#FCFCF7',
-      // The docs handoff uses the page surface for cards; hierarchy comes from
-      // hairline borders rather than white tiles or elevation.
-      card: '#FCFCF7',
-      foreground: '#1A2018',
-      muted: '#EFEFE9',
-      mutedForeground: '#747B72',
-      border: '#E5E6E1',
-      accent: '#007852',
+      background: '#FCFCFC',
+      card: '#FCFCFC',
+      foreground: '#171717',
+      muted: '#EDEDED',
+      mutedForeground: '#525252',
+      border: '#DFDFDF',
+      accent: '#007F46',
       accentForeground: '#FFFFFF',
-      accent2: '#755FBB',
-      accent2Foreground: '#0B0A13',
-      input: '#E5E6E1',
-      sidebar: '#F7F7F2',
-      ring: '#397059',
-      // Olive-family tint (the leaf's own green) for the active sidebar item
-      sidebarActiveBg: '68 40% 88% / 0.65',
-      sidebarActiveText: '#454A22',
+      accent2: '#3B82F6',
+      accent2Foreground: '#0B1220',
+      input: '#DFDFDF',
+      sidebar: '#FCFCFC',
+      ring: '#72E3AD',
+      sidebarActiveBg: '#EDEDED',
+      sidebarActiveText: '#202020',
     },
     dark: {
-      background: '#040704',
-      card: '#060906',
-      foreground: '#EFEFE7',
-      muted: '#0E130F',
-      mutedForeground: '#929C90',
-      border: '#1B1E1A',
-      accent: '#BAE43E',
-      accentForeground: '#101911',
-      accent2: '#AC9CF0',
-      accent2Foreground: '#0B0A13',
-      input: '#29302A',
-      sidebar: '#060906',
-      ring: '#BAE43E',
-      sidebarActiveBg: '132 15% 6%',
-      sidebarActiveText: '#BAE43E',
+      background: '#121212',
+      card: '#171717',
+      foreground: '#E2E8F0',
+      muted: '#1F1F1F',
+      mutedForeground: '#A2A2A2',
+      border: '#292929',
+      accent: '#50D492',
+      accentForeground: '#1E2723',
+      accent2: '#60A5FA',
+      accent2Foreground: '#0B1220',
+      input: '#242424',
+      sidebar: '#121212',
+      ring: '#4ADE80',
+      sidebarActiveBg: '#313131',
+      sidebarActiveText: '#FAFAFA',
     },
   },
   // Alternate preset — violet. Still a first-class, ready-to-use accent.

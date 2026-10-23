@@ -1,0 +1,333 @@
+---
+title: "TanStack Start"
+description: "This guide sets up uitheme-web in a TanStack Start app."
+---
+
+This guide sets up `uitheme-web` in a TanStack Start app.
+
+You can choose one of two methods to prevent a flash of the wrong theme.
+
+| Method                        | Flash         | Needs server functions |
+| ----------------------------- | ------------- | ---------------------- |
+| A: Cookie-based (recommended) | None          | Yes                    |
+| B: Pre-hydration script       | Close to none | No                     |
+
+Both methods support `systemThemeMode`:
+
+- `'css'` puts the class `system` on `<html>`. CSS media queries choose light or dark. You must change your CSS. See [Theme CSS](/setup/theme-css).
+- `'js'` resolves the system appearance with `matchMedia`. Your existing CSS works without change.
+
+## Requirements
+
+- A TanStack Start app with `@tanstack/react-start` and `@tanstack/react-router`.
+- React 18 or later.
+- Tailwind CSS v4, if you use the prebuilt controls.
+- For method A: a validation library for server function input. The example uses `zod`.
+
+## Install
+
+```bash
+pnpm add uitheme-web @radix-ui/react-select
+```
+
+```bash
+npm install uitheme-web @radix-ui/react-select
+```
+
+```bash
+yarn add uitheme-web @radix-ui/react-select
+```
+
+For method A, also install `zod` if your app does not have it.
+
+## Configure
+
+### Method A: Cookie-based
+
+The server reads the theme from a cookie in `beforeLoad`. The server then renders the correct class on `<html>`.
+
+#### 1. Create the server functions
+
+Create `src/lib/theme.ts`. Keep `createServerFn()` calls in your own source files. TanStack Start transforms them at build time. It cannot transform calls inside a built library.
+
+```ts
+import { createServerFn } from '@tanstack/react-start';
+import { getCookie, setCookie } from '@tanstack/react-start/server';
+import { z } from 'zod';
+import {
+  buildServerThemeData,
+  STORAGE_KEY,
+  COLOR_STORAGE_KEY,
+  type ServerThemeData,
+} from 'uitheme-web/tanstack';
+
+export const getThemeServerFn = createServerFn().handler((): ServerThemeData =>
+  buildServerThemeData(getCookie(STORAGE_KEY), getCookie(COLOR_STORAGE_KEY))
+);
+
+export const setThemeServerFn = createServerFn()
+  .inputValidator(z.string())
+  .handler(({ data }) => {
+    setCookie(STORAGE_KEY, data);
+  });
+
+export const setColorThemeServerFn = createServerFn()
+  .inputValidator(z.string())
+  .handler(({ data }) => {
+    setCookie(COLOR_STORAGE_KEY, data);
+  });
+```
+
+The cookie names are `theme` and `color-theme`. These values come from `STORAGE_KEY` and `COLOR_STORAGE_KEY`.
+
+`buildServerThemeData(themeCookie, colorThemeCookie, options?)` returns this object:
+
+| Field             | Meaning                                                |
+| ----------------- | ------------------------------------------------------ |
+| `theme`           | Class for `<html>`: `'light'`, `'dark'`, or `'system'` |
+| `themePreference` | The stored preference                                  |
+| `colorTheme`      | The palette name                                       |
+
+The `options` object accepts `defaultTheme` (default `'system'`) and `defaultColorTheme` (default `'default'`). An invalid cookie value falls back to the default.
+
+#### 2. Update the root route
+
+Edit `src/routes/__root.tsx`.
+
+```tsx
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRoute,
+} from '@tanstack/react-router';
+import { TanStackUIThemeProvider } from 'uitheme-web/react';
+import {
+  getThemeServerFn,
+  setThemeServerFn,
+  setColorThemeServerFn,
+} from '@/lib/theme';
+import appCss from '../globals.css?url';
+
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'My App' },
+    ],
+    links: [{ rel: 'stylesheet', href: appCss }],
+  }),
+  beforeLoad: async () => ({
+    themeData: await getThemeServerFn(),
+  }),
+  shellComponent: RootDocument,
+  component: RootComponent,
+});
+
+function RootDocument({ children }: { children: React.ReactNode }) {
+  const { themeData } = Route.useRouteContext();
+
+  const htmlClass = [
+    themeData.theme,
+    themeData.colorTheme !== 'default' ? `theme-${themeData.colorTheme}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  return (
+    <html lang="en" className={htmlClass} suppressHydrationWarning>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
+}
+
+function RootComponent() {
+  const { themeData } = Route.useRouteContext();
+
+  return (
+    <TanStackUIThemeProvider
+      defaultTheme="system"
+      defaultColorTheme="default"
+      themes={['light', 'dark', 'system']}
+      colorThemes={['default', 'caffeine', 'mono']}
+      serverTheme={themeData.theme}
+      serverColorTheme={themeData.colorTheme}
+      systemThemeMode="css"
+      onServerThemeChange={(theme) => setThemeServerFn({ data: theme })}
+      onServerColorThemeChange={(colorTheme) =>
+        setColorThemeServerFn({ data: colorTheme })
+      }
+    >
+      <Outlet />
+    </TanStackUIThemeProvider>
+  );
+}
+```
+
+The `onServerThemeChange` and `onServerColorThemeChange` callbacks write the cookie when the user changes the theme. Use `onServerError={(error) => ...}` to observe failed writes. Without it, the library reports failures with `console.error`.
+
+### Method B: Pre-hydration script
+
+A blocking script reads `localStorage` before React hydrates. This method needs no server function.
+
+Edit `src/routes/__root.tsx`.
+
+```tsx
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRoute,
+} from '@tanstack/react-router';
+import {
+  TanStackUIThemeProvider,
+  TanStackStartThemeScript,
+} from 'uitheme-web/react';
+import appCss from '../globals.css?url';
+
+export const Route = createRootRoute({
+  head: () => ({
+    meta: [
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'My App' },
+    ],
+    links: [{ rel: 'stylesheet', href: appCss }],
+  }),
+  shellComponent: RootDocument,
+  component: RootComponent,
+});
+
+function RootDocument({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <TanStackStartThemeScript
+          defaultTheme="system"
+          defaultColorTheme="default"
+          systemThemeMode="js"
+        />
+        <HeadContent />
+      </head>
+      <body>
+        {children}
+        <Scripts />
+      </body>
+    </html>
+  );
+}
+
+function RootComponent() {
+  return (
+    <TanStackUIThemeProvider
+      defaultTheme="system"
+      defaultColorTheme="default"
+      themes={['light', 'dark', 'system']}
+      colorThemes={['default', 'caffeine', 'mono']}
+      systemThemeMode="js"
+    >
+      <Outlet />
+    </TanStackUIThemeProvider>
+  );
+}
+```
+
+Follow these rules:
+
+1. Put `TanStackStartThemeScript` in `<head>`, before `<HeadContent />`.
+2. Use the same `systemThemeMode` in the script and in the provider. The script default is `'js'`. The provider default is `'css'`.
+3. Use the same `storageKey`, `colorStorageKey`, `globalClassName`, and `colorThemePrefix` in both places. Pass `nonce` to the script if your site uses a CSP.
+
+### Provider options
+
+| Option                     | Default                       | Purpose                               |
+| -------------------------- | ----------------------------- | ------------------------------------- |
+| `defaultTheme`             | `'system'`                    | Appearance when nothing is stored     |
+| `defaultColorTheme`        | `'default'`                   | Palette when nothing is stored        |
+| `themes`                   | `['light', 'dark', 'system']` | Available appearances                 |
+| `colorThemes`              | `['default']`                 | Available palettes                    |
+| `storageKey`               | `'theme'`                     | Storage key for the appearance        |
+| `colorStorageKey`          | `'color-theme'`               | Storage key for the palette           |
+| `globalClassName`          | `'dark'`                      | Class for dark appearance             |
+| `colorThemePrefix`         | `'theme-'`                    | Prefix for palette classes            |
+| `serverTheme`              | None                          | Appearance from the cookie (method A) |
+| `serverColorTheme`         | None                          | Palette from the cookie (method A)    |
+| `systemThemeMode`          | `'css'`                       | `'css'` or `'js'`                     |
+| `onServerThemeChange`      | None                          | Save the appearance to the cookie     |
+| `onServerColorThemeChange` | None                          | Save the palette to the cookie        |
+| `onServerError`            | None                          | Observe failed server notifications   |
+
+## Add theme CSS or palettes
+
+Add the variables and the palette classes to your global stylesheet. Follow [Theme CSS](/setup/theme-css).
+
+If you use `systemThemeMode="css"`, you must also add the `.system` rules from that page. Without them, the `system` choice does not switch to dark.
+
+Each palette in `colorThemes` needs a `.theme-<name>` block. Add `.theme-<name>.dark` for dark colors. With `systemThemeMode="css"`, add `.theme-<name>.system` inside the `prefers-color-scheme: dark` media query.
+
+## Add a control
+
+### Custom toggle
+
+```tsx
+import { useTanStackUITheme } from 'uitheme-web/react';
+
+export function ThemeToggle() {
+  const { resolvedTheme, toggleTheme, ref } = useTanStackUITheme();
+
+  return (
+    <button ref={ref} type="button" onClick={() => toggleTheme()}>
+      {resolvedTheme === 'light' ? 'Dark' : 'Light'}
+    </button>
+  );
+}
+```
+
+`useTanStackUITheme` also returns `isHydrated`. Use it to avoid rendering client-only text before hydration.
+
+### Prebuilt controls
+
+```tsx
+import { UIThemeSwitcher, UIThemeSelector } from 'uitheme-web/react';
+
+export function ThemeControls() {
+  return (
+    <>
+      <UIThemeSwitcher />
+      <UIThemeSelector colorThemes={['default', 'caffeine', 'mono']} />
+    </>
+  );
+}
+```
+
+Add the `@source` line from [Theme CSS](/setup/theme-css) so that Tailwind styles these controls.
+
+## Verify it works
+
+1. Run `pnpm dev`.
+2. Open the page in the browser.
+3. Click the toggle. Confirm that the page changes and that the animation plays.
+4. Reload the page. Confirm that the page loads in the same theme with no flash.
+5. Method A: open the browser storage panel. Confirm that the cookies `theme` and `color-theme` exist.
+6. Method A: view the page source. Confirm that the `<html>` tag has the theme class in the server response.
+7. Method B: run `localStorage.getItem('theme')` in the console. Confirm that the value matches your choice.
+
+## Reference apps
+
+The repository has two working apps:
+
+- `apps/examples/example-tanstack` uses method B with `TanStackStartThemeScript`.
+- `apps/examples/example-tanstack-ssr` uses method A with the server functions.
+
+## Next steps
+
+- [Theme CSS](/setup/theme-css)
+- [Transitions](/setup/transitions)
+- [Troubleshooting](/troubleshooting)

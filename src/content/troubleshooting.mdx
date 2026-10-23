@@ -1,0 +1,193 @@
+---
+title: "Troubleshooting"
+description: "This page lists setup problems and their fixes."
+---
+
+This page lists setup problems and their fixes. It does not cover app bugs.
+
+## Web packages
+
+### The page flashes the wrong theme on load
+
+The page shows the wrong theme for a moment, then switches. Use the fix for your framework.
+
+| Framework      | Fix                                                                                                                                                                            |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Next.js        | Keep `suppressHydrationWarning` on `<html>`. Do not set `disablePreHydrationScript`. Put the provider high in the tree.                                                        |
+| Vite and React | Add the before-paint script to `index.html`. Use the same storage keys as the provider (`ui-theme` and `ui-color-theme`).                                                      |
+| TanStack Start | Method A: pass `serverTheme` to the provider and put the class on `<html>` in `shellComponent`. Method B: put `TanStackStartThemeScript` in `<head>` before `<HeadContent />`. |
+| Vue            | Add `getThemeScript()` to `index.html` through a Vite plugin. Use the same options as `createUITheme`.                                                                         |
+| Nuxt           | Do not add a second provider. Use the module. It adds the script and the server classes.                                                                                       |
+
+### React reports a hydration mismatch
+
+The script or the server changes the classes on `<html>` before React hydrates. This is expected. Add `suppressHydrationWarning` to the `<html>` tag.
+
+Also check that `defaultTheme` matches the stored value.
+
+### The theme does not persist
+
+1. Check that `localStorage` is available. Private windows can block it.
+2. Check the storage keys. The defaults differ: `NextUIThemeProvider` and `TanStackUIThemeProvider` use `theme` and `color-theme`. `ViteUIThemeProvider` uses `ui-theme` and `ui-color-theme`. `uitheme-vue` uses `theme` and `color-theme`.
+3. For the before-paint script, use the same keys as the provider.
+4. For Nuxt, look for cookies. Nuxt does not use `localStorage`.
+
+### The prebuilt controls have no styling
+
+`UIThemeSwitcher` and `UIThemeSelector` use Tailwind classes. The package has no compiled CSS. Add the source line to the stylesheet that imports Tailwind:
+
+```css
+@import 'tailwindcss';
+@source '../node_modules/uitheme-web/dist';
+```
+
+Change the relative path to match your project. This needs Tailwind CSS v4.
+
+The Vue and Nuxt controls are plain `<select>` elements. They do not need this line.
+
+### `UIThemeSelector` renders nothing
+
+The selector renders nothing when `colorThemes` has one item or none. Pass the list as a prop:
+
+```tsx
+<UIThemeSelector colorThemes={['default', 'blue', 'green']} />
+```
+
+### A palette does not apply
+
+1. Check that the palette name is in `colorThemes`.
+2. Check that your CSS has a `.theme-<name>` block.
+3. Put the `.theme-<name>` blocks after the `.dark` block.
+4. Add a `.theme-<name>.dark` block for dark colors.
+5. Check the browser console: run `document.documentElement.className`. Confirm that `theme-<name>` is present.
+
+### The `system` choice does not switch to dark (TanStack Start)
+
+You set `systemThemeMode="css"`. Your CSS needs two changes:
+
+1. The `@custom-variant dark` block with the `.system` media query rule.
+2. A `.system` variable block inside `@media (prefers-color-scheme: dark)`.
+
+See [Theme CSS](/setup/theme-css). Also use the same `systemThemeMode` in `TanStackStartThemeScript` and in the provider. The script default is `'js'`. The provider default is `'css'`.
+
+### An error says a hook must be used within a provider
+
+Examples: `useNextUITheme must be used within a NextUIThemeProvider`, and `useUITheme requires app.use(createUITheme()) or UIThemeProvider.`
+
+1. Use the hook that matches your provider: `useNextUITheme`, `useViteUITheme`, `useTanStackUITheme`, or `useUITheme`.
+2. Put the provider above the component.
+3. In Vue, call `useUITheme()` inside `setup`, and install the plugin with `app.use(createUITheme())`.
+
+### The animation does not play
+
+1. Use a browser with the View Transitions API. The existing guides name Chrome and Edge 111 or later.
+2. Use HTTPS or `localhost`.
+3. Check the reduced motion setting of the operating system. The theme changes at once when it is on.
+4. Keyboard activation skips the animation when you pass `animationOff: event.detail === 0`.
+5. Attach the `ref` to one trigger only. Or pass `element` or `origin` in the call.
+
+Where the browser lacks support, the library changes the theme at once.
+
+## Nuxt
+
+### The build or dev server fails on the Node version
+
+The Nuxt example app requires Node.js `^22.21.0`, `^24.11.0`, or `>=26.0.0`. Check your version:
+
+```bash
+node -v
+```
+
+Install a version in the range. Then reinstall dependencies and run the command again.
+
+### The server and the browser show different themes
+
+1. Do not add `UIThemeProvider` around the root. The module creates the owner.
+2. Do not read cookies or storage at module scope.
+3. Wait for `mounted` before you render text or icons that depend on the system appearance.
+
+## React Native and Expo
+
+### Peer dependency warnings or the wrong versions
+
+`uitheme-rn` limits the animation peers to a narrow range:
+
+| Package                      | Range            |
+| ---------------------------- | ---------------- |
+| `react-native-reanimated`    | `>=4.5.1 <4.6`   |
+| `react-native-worklets`      | `>=0.10.1 <0.11` |
+| `@shopify/react-native-skia` | `>=2.11.1 <2.12` |
+| `nativewind`                 | `5.0.0-rc.0`     |
+| `uniwind`                    | `>=1.12.2 <2`    |
+| `@expo/ui`                   | `>=56.0.0 <58`   |
+
+1. Install Expo packages with `npx expo install <package>`.
+2. Install Skia and NativeWind with exact versions (see below).
+3. Do not use `--force` or `--legacy-peer-deps` to hide a peer conflict. Change the version instead.
+
+### Preferences do not persist
+
+Without a storage adapter, the choices stay in memory. Pass `storage={Storage}` to `UIThemeProvider`. See [React Native and Expo](/setup/react-native-expo).
+
+On the web build of an Expo app, use a `localStorage` adapter in `storage.web.ts`.
+
+### The splash screen never goes away, or the app shows defaults first
+
+You pass `fallback={null}`. The provider then renders nothing until the saved choices restore. Call `SplashScreen.hideAsync()` after `isHydrated` is `true`. Omit `fallback` to render the defaults while restore runs.
+
+### An error says CSS palette colors need a styling adapter
+
+A palette with only a `label` has no colors. Put `NativeWindTheme` or `UniwindTheme` around the component. Or define `light` and `dark` colors in the palette.
+
+### Skia and Expo Go
+
+`uitheme-rn/transitions` needs Skia `2.11.1` or a 2.11 patch release. Expo SDK 57 bundles Skia 2.6.2. That version has a broken Android capture path. The 2.11.x override needs a custom native build. It does not work in Expo Go.
+
+1. Install `@shopify/react-native-skia@2.11.1`.
+2. Add `@shopify/react-native-skia` to `expo.install.exclude` in `package.json`, so `expo install` does not replace it.
+3. Build the native app: `npx expo prebuild`, then `npx expo run:ios` or `npx expo run:android`.
+4. Use a development build, not Expo Go, to test the screen effects.
+
+The root, `/core`, `/expo`, and `/reanimated` entries do not import Skia.
+
+### Reanimated or Worklets errors
+
+1. Use Reanimated `4.5.x` with Worklets `0.10.x`.
+2. Enable the React Native New Architecture.
+3. In a bare React Native app, add the Worklets Babel plugin. Follow the Reanimated installation guide.
+4. Use `Animated.View` and `Animated.Text` with `useThemeTransition()`.
+5. Rebuild the native app after you change native packages.
+
+### NativeWind: version pin
+
+`uitheme-rn/nativewind` supports `nativewind@5.0.0-rc.0` only. It needs `react-native-css@3.1.0-rc.0`. NativeWind 4 does not work with the adapter.
+
+1. Install with exact versions: `pnpm add --save-exact nativewind@5.0.0-rc.0 react-native-css@3.1.0-rc.0`.
+2. Check `package.json`. The versions must have no `^` or `~`.
+3. Use Tailwind CSS `4.3.1`, `lightningcss` `1.30.1`, and `@tailwindcss/postcss` `4.3.1`, as in the reference app.
+4. Run `npx expo start --clear` after you change the Metro or PostCSS config.
+
+A newer NativeWind release needs a compatibility check before you use it.
+
+### NativeWind or Uniwind: a color variable is missing
+
+The adapter reads seven colors from CSS: `--color-background`, `--color-card`, `--color-foreground`, `--color-muted-foreground`, `--color-border`, `--color-primary`, and `--color-primary-foreground`. An error that names a variable means your palette scope does not define it.
+
+Check these items:
+
+1. Each scope (CSS class or `@variant`) defines the variable.
+2. The names in `scopes` match the CSS names exactly.
+3. Uniwind: the names in `scopes` are also in `extraThemes` in `metro.config.cjs`.
+4. NativeWind: the Metro config excludes the variables from inlining.
+
+An error that starts with `Missing NativeWind class for` or `Missing Uniwind theme for` means `scopes` has no entry for the current palette and appearance.
+
+### The `dark:` class does not follow my choice (NativeWind)
+
+The NativeWind `dark:` variant follows the system appearance. Use semantic color classes such as `bg-background` and `text-foreground` for palettes that `uitheme-rn` owns.
+
+## Next steps
+
+- [Installation](/installation)
+- [Theme CSS](/setup/theme-css)
+- [Transitions](/setup/transitions)

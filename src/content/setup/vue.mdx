@@ -1,0 +1,225 @@
+---
+title: "Vue"
+description: "This guide sets up uitheme-vue in a Vue 3 app built with Vite."
+---
+
+This guide sets up `uitheme-vue` in a Vue 3 app built with Vite.
+
+> `uitheme-vue` is an alpha package (`0.1.0-alpha.0`). The API can change before a stable release.
+
+## Requirements
+
+- Vue `^3.5.0`.
+- A Vite project that uses `@vitejs/plugin-vue`.
+- Tailwind CSS v4 with `@tailwindcss/vite`, if you want the Tailwind classes from [Theme CSS](/setup/theme-css). Tailwind is optional.
+
+## Install
+
+```bash
+pnpm add uitheme-vue@alpha
+```
+
+```bash
+npm install uitheme-vue@alpha
+```
+
+```bash
+yarn add uitheme-vue@alpha
+```
+
+The package does not need React. It ships an ES module build only.
+
+## Configure
+
+### 1. Install the plugin
+
+Edit `src/main.ts`.
+
+```ts
+import { createApp } from 'vue';
+import { createUITheme } from 'uitheme-vue';
+import App from './App.vue';
+import './style.css';
+
+createApp(App)
+  .use(
+    createUITheme({
+      defaultTheme: 'system',
+      colorThemes: ['default', 'caffeine', 'mocha'],
+    })
+  )
+  .mount('#app');
+```
+
+The plugin creates one theme owner for the app. Every composable and component reads from that owner. A component that runs without the plugin throws an error.
+
+All themes apply to the `<html>` element. Use one theme owner at the app root.
+
+### 2. Add the before-paint script
+
+The plugin runs after Vue starts. Add a script to the document head so that the first paint uses the right theme.
+
+Add a marker to `index.html`:
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My app</title>
+    <!--uitheme-script-->
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+```
+
+Add a small Vite plugin to `vite.config.ts`. The plugin replaces the marker with the script.
+
+```ts
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import tailwindcss from '@tailwindcss/vite';
+import { getThemeScript } from 'uitheme-vue/bootstrap';
+
+export default defineConfig({
+  plugins: [
+    vue(),
+    tailwindcss(),
+    {
+      name: 'uitheme-before-paint',
+      transformIndexHtml: (html) =>
+        html.replace(
+          '<!--uitheme-script-->',
+          `<script>${getThemeScript({ colorThemes: ['default', 'caffeine', 'mocha'] })}</script>`
+        ),
+    },
+  ],
+});
+```
+
+`getThemeScript(options)` returns script text. It does not return an HTML tag.
+
+Use the same options in `getThemeScript` and in `createUITheme`. These options must match: `themes`, `colorThemes`, `defaultTheme`, `defaultColorTheme`, `storageKey`, `colorStorageKey`, `globalClassName`, and `colorThemePrefix`. If you set a custom `storage` adapter in the plugin, the script does not read it. The script then uses the defaults.
+
+If your site uses a CSP, add the nonce to the `<script>` element.
+
+### Plugin options
+
+| Option               | Default                       | Purpose                                             |
+| -------------------- | ----------------------------- | --------------------------------------------------- |
+| `themes`             | `['light', 'dark', 'system']` | Available appearances                               |
+| `defaultTheme`       | `'system'`                    | Appearance when nothing is stored                   |
+| `colorThemes`        | `['default']`                 | Available palettes                                  |
+| `defaultColorTheme`  | First item of `colorThemes`   | Palette when nothing is stored                      |
+| `storageKey`         | `'theme'`                     | `localStorage` key for the appearance               |
+| `colorStorageKey`    | `'color-theme'`               | `localStorage` key for the palette                  |
+| `globalClassName`    | `'dark'`                      | Class for dark appearance                           |
+| `colorThemePrefix`   | `'theme-'`                    | Prefix for palette classes                          |
+| `storage`            | `localStorage`                | A `ThemeStorage` adapter, or `false` to turn it off |
+| `onThemeChange`      | None                          | Runs after a committed appearance change            |
+| `onColorThemeChange` | None                          | Runs after a committed palette change               |
+
+`defaultTheme` must be in `themes`. `defaultColorTheme` must be in `colorThemes`. If not, the plugin throws an error.
+
+### Use a provider component instead
+
+You can wrap part of the app in `<UIThemeProvider :options="options">`. The options apply once, when the provider is created. The theme still applies to `<html>`.
+
+## Add theme CSS or palettes
+
+Create `src/style.css`. Follow [Theme CSS](/setup/theme-css). A minimal file looks like this:
+
+```css
+@import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: white;
+  --foreground: #171717;
+  --primary: #34a85a;
+}
+
+.dark {
+  --background: #171717;
+  --foreground: white;
+}
+
+.theme-mocha {
+  --primary: #a37764;
+}
+
+.theme-mocha.dark {
+  --primary: #c39e88;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+}
+```
+
+The plugin adds `theme-default` for the default palette. You do not need a `.theme-default` block if `:root` holds the default colors.
+
+## Add a control
+
+### Ready-made controls
+
+```vue
+<script setup lang="ts">
+import { UIThemeSwitcher, UIThemeSelector } from 'uitheme-vue';
+</script>
+
+<template>
+  <UIThemeSwitcher />
+  <UIThemeSelector />
+</template>
+```
+
+Both controls are native `<select>` elements. `UIThemeSwitcher` picks the appearance. `UIThemeSelector` picks the palette. Both accept a `label` prop for the accessible name. `UIThemeSwitcher` also accepts `themes` to show a subset.
+
+### Custom buttons
+
+```vue
+<script setup lang="ts">
+import { useUITheme } from 'uitheme-vue';
+
+const { theme, colorTheme, mounted, toggleTheme, createColorThemeToggle } =
+  useUITheme();
+</script>
+
+<template>
+  <button :disabled="!mounted" @click="toggleTheme($event)">
+    Change appearance
+  </button>
+  <button :disabled="!mounted" @click="createColorThemeToggle('mocha')($event)">
+    Mocha
+  </button>
+  <p>{{ theme }} / {{ colorTheme }}</p>
+</template>
+```
+
+Call `useUITheme()` inside `setup`. Pass `$event` so that the animation starts from the clicked element. The `mounted` value is `false` until the app mounts in the browser. Disable controls until then.
+
+`useTheme` is an alias of `useUITheme`.
+
+## Verify it works
+
+1. Run `pnpm dev`.
+2. Open the page in the browser.
+3. Use the controls. Confirm that the page changes and that the animation plays.
+4. In the console, run `document.documentElement.className`. Confirm that the output includes `dark` and `theme-<name>`.
+5. Run `localStorage.getItem('theme')`. Confirm that the value matches your choice.
+6. Reload the page. Confirm that the page loads in the same theme with no flash.
+7. Open a second tab. Change the theme in the first tab. Confirm that the second tab follows.
+
+## Next steps
+
+- [Theme CSS](/setup/theme-css)
+- [Transitions](/setup/transitions)
+- [Nuxt](/setup/nuxt)
+- [Troubleshooting](/troubleshooting)

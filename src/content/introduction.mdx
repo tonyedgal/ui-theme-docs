@@ -1,45 +1,53 @@
 ---
-title: Introduction
-description: Give readers a clear path from their first question to a result they can verify.
-mode: home
+title: "UI-Theme overview"
+description: "UI-Theme adds light mode, dark mode, system mode, and named color palettes to your app."
 ---
 
-<Hero
-  title="Build documentation around the reader"
-  subtitle="Start with a useful first result, organize what follows, and publish every format from one reviewable source."
-  primaryLabel="Get started"
-  primaryHref="/quickstart"
-  secondaryLabel="Publish your docs"
-  secondaryHref="/guides/create-a-site"
-/>
+UI-Theme adds light mode, dark mode, system mode, and named color palettes to your app. It also adds animated theme changes on the web and on native devices.
 
-## Build the reader journey
+UI-Theme has three packages. Each package targets one platform family.
 
-Begin with the task that brings most readers to your documentation, then make
-the next useful step obvious.
+| Platform                       | Package       | Status                     |
+| ------------------------------ | ------------- | -------------------------- |
+| React on the web               | `uitheme-web` | Stable. Version 1.1.0      |
+| Vue 3 and Nuxt 4               | `uitheme-vue` | Alpha. Version 0.1.0-alpha |
+| React Native and Expo (native) | `uitheme-rn`  | Alpha. Version 0.1.0-alpha |
 
-<CardGroup cols="2">
-  <Card title="Write your quickstart" icon="party-horn" href="/quickstart">
-    Turn prerequisites, setup, one realistic task, and verification into a short path.
-  </Card>
-  <Card title="Organize your navigation" icon="grid-round" href="/customization">
-    Group related tasks and references around how people use your product.
-  </Card>
-  <Card title="Document your API" icon="code-simple" href="/api">
-    Replace `openapi.yaml` to publish browsable endpoint docs with a live playground.
-  </Card>
-  <Card title="Learn the Thally workflow" icon="wrench" href="/guides/create-a-site">
-    Create, publish, and update sites from the Cloud dashboard, the CLI, or your AI tools.
-  </Card>
-</CardGroup>
+## What UI-Theme does
 
-## Publish from one source
+- It stores the user choice for appearance (`light`, `dark`, or `system`).
+- It stores the user choice for a named color palette. The palette is separate from the appearance.
+- It restores both choices when the app starts.
+- It plays an animated change when the user switches. The web packages use the View Transitions API. The native package uses Reanimated and Skia.
+- It respects the reduced motion setting of the user.
 
-Thally turns the same reviewed content into HTML, search, agent discovery files,
-Markdown mirrors, and a read-only MCP surface — so people and AI tools read the
-same, current answer. Add only the locales your readers need.
+## Setup guides
 
-<Note type="info" title="Start with the product, not the template">
-  Replace this page with the questions, terminology, and workflows your readers
-  already use. Keep `docs.json` focused on the path between those tasks.
-</Note>
+| Guide                                                 | Package       | Use it for                                                     |
+| ----------------------------------------------------- | ------------- | -------------------------------------------------------------- |
+| [Installation](/installation)                     | All           | Choose a package and install it                                |
+| [Next.js](/setup/nextjs)                          | `uitheme-web` | Next.js App Router and Pages Router                            |
+| [Vite and React](/setup/vite-react)               | `uitheme-web` | React single-page apps built with Vite                         |
+| [TanStack Start](/setup/tanstack-start)           | `uitheme-web` | TanStack Start apps, with cookie-based server rendering        |
+| [Vue](/setup/vue)                                 | `uitheme-vue` | Vue 3 apps built with Vite                                     |
+| [Nuxt](/setup/nuxt)                               | `uitheme-vue` | Nuxt 4 apps with server rendering                              |
+| [React Native and Expo](/setup/react-native-expo) | `uitheme-rn`  | Expo and React Native apps with `StyleSheet` styles            |
+| [NativeWind](/setup/nativewind)                   | `uitheme-rn`  | Expo apps that use NativeWind 5 classes                        |
+| [Uniwind](/setup/uniwind)                         | `uitheme-rn`  | Expo apps that use Uniwind classes                             |
+| [Theme CSS](/setup/theme-css)                     | Web packages  | CSS variables and Tailwind CSS v4 palettes                     |
+| [Transitions](/setup/transitions)                 | All           | Enable animated theme changes on the web and on native devices |
+| [Troubleshooting](/troubleshooting)               | All           | Fix common setup problems                                      |
+
+## How to read these guides
+
+Each setup guide uses the same order:
+
+1. Requirements
+2. Install
+3. Configure
+4. Add theme CSS or palettes
+5. Add a control
+6. Verify it works
+7. Next steps
+
+Start with the [installation page](/installation) if you do not know which package you need.

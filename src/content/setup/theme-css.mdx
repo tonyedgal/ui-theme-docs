@@ -1,0 +1,186 @@
+---
+title: "Theme CSS"
+description: "This page shows the CSS that the web packages need."
+---
+
+This page shows the CSS that the web packages need. The packages change classes on the `<html>` element. Your CSS defines the colors.
+
+This page applies to `uitheme-web` (Next.js, Vite, TanStack Start) and `uitheme-vue` (Vue, Nuxt). For native apps, see [React Native and Expo](/setup/react-native-expo).
+
+## Requirements
+
+- Tailwind CSS v4.
+- A provider or plugin from one of the web setup guides.
+
+Tailwind is not required to use the packages. You can write plain CSS with the same class names.
+
+## How the classes work
+
+| State                      | Class on `<html>` |
+| -------------------------- | ----------------- |
+| Dark appearance            | `dark`            |
+| Light appearance           | No `dark` class   |
+| Color palette `ocean`      | `theme-ocean`     |
+| TanStack, system, CSS mode | `system`          |
+
+The class names `dark` and `theme-` are the defaults. Set `globalClassName` and `colorThemePrefix` to change them.
+
+Appearance and palette are separate. A user can pick any palette in light or dark appearance.
+
+## Install
+
+No extra install is needed. Use the Tailwind setup of your framework.
+
+If you use the prebuilt React controls (`UIThemeSwitcher`, `UIThemeSelector`), tell Tailwind to scan the package. The package does not ship a compiled stylesheet.
+
+```css
+@import 'tailwindcss';
+@source '../node_modules/uitheme-web/dist';
+```
+
+Change the relative path so that it points to `node_modules/uitheme-web/dist` from your stylesheet. If you skip this step, the controls render without borders, spacing, and hover states.
+
+The Vue and Nuxt controls are native `<select>` elements. They do not need `@source`.
+
+## Configure
+
+Add this to your global stylesheet. The stylesheet is `app/globals.css` in Next.js and `src/index.css` or `src/styles.css` in Vite.
+
+```css
+@import 'tailwindcss';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+}
+```
+
+The `@custom-variant` line makes the Tailwind `dark:` prefix follow the `dark` class.
+
+The `@theme inline` block maps your variables to Tailwind color names. Then you can write `bg-background` and `text-primary`.
+
+For Vue and Nuxt, you can use this variant line instead. It also matches the `<html>` element itself.
+
+```css
+@custom-variant dark (&:where(.dark, .dark *));
+```
+
+## Add theme CSS or palettes
+
+Define the default colors on `:root`. Define the dark colors on `.dark`. Define each named palette on `.theme-<name>`.
+
+```css
+:root {
+  --background: #fafafa;
+  --foreground: #1f1f1f;
+  --card: #ffffff;
+  --card-foreground: #1f1f1f;
+  --primary: #34a85a;
+  --primary-foreground: #ffffff;
+  --muted: #e6e6e6;
+  --muted-foreground: #666666;
+  --border: #d4d4d4;
+}
+
+.dark {
+  --background: #1a1d23;
+  --foreground: #e5e5e5;
+  --card: #2f3436;
+  --card-foreground: #e5e5e5;
+  --primary: #34a85a;
+  --primary-foreground: #ffffff;
+  --muted: #444444;
+  --muted-foreground: #a3a3a3;
+  --border: #444444;
+}
+
+.theme-ocean {
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+}
+
+.theme-ocean.dark {
+  --primary: #60a5fa;
+  --primary-foreground: #0b1220;
+}
+```
+
+Follow these rules:
+
+1. Put the `.theme-*` blocks after the `.dark` block. The blocks have the same weight. The last block wins.
+2. Write a `.theme-<name>.dark` block for each palette that needs different dark colors.
+3. The `default` palette needs no block. Its values come from `:root` and `.dark`.
+4. Add the palette name to `colorThemes` in the provider or plugin options. A palette name that is missing from `colorThemes` is not available.
+
+Use the body styles in your base layer:
+
+```css
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+```
+
+## System mode with CSS only (TanStack Start)
+
+TanStack Start can resolve the `system` choice with CSS. Set `systemThemeMode="css"`. The library then puts the class `system` on `<html>`. It does not add `dark`.
+
+Make two changes in your CSS.
+
+1. Replace the `@custom-variant` line:
+
+```css
+@custom-variant dark {
+  &:is(.dark *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:is(.system *) {
+      @slot;
+    }
+  }
+}
+```
+
+2. Repeat the dark variables for `.system`:
+
+```css
+@media (prefers-color-scheme: dark) {
+  .system {
+    --background: #1a1d23;
+    --foreground: #e5e5e5;
+    /* repeat every variable from the .dark block */
+  }
+
+  .theme-ocean.system {
+    --primary: #60a5fa;
+    --primary-foreground: #0b1220;
+  }
+}
+```
+
+Next.js, Vite, Vue, and Nuxt resolve `system` in JavaScript. They do not need this step.
+
+## Verify it works
+
+1. Start your dev server.
+2. Open the browser developer tools.
+3. Run `document.documentElement.className` in the console.
+4. Switch to dark appearance. Confirm that the output includes `dark`.
+5. Select a palette. Confirm that the output includes `theme-<name>`.
+6. Confirm that the page colors change.
+
+## Next steps
+
+- [Transitions](/setup/transitions)
+- [Troubleshooting](/troubleshooting)

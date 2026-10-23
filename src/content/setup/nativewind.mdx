@@ -1,0 +1,300 @@
+---
+title: "NativeWind"
+description: "This guide connects uitheme-rn to NativeWind 5."
+---
+
+This guide connects `uitheme-rn` to NativeWind 5. You use utility classes such as `bg-background` and `text-foreground`. The classes use the same colors as the `uitheme-rn` store.
+
+> **Alpha.** `uitheme-rn` is version `0.1.0-alpha`. NativeWind 5 is a release candidate. The adapter supports exactly `nativewind@5.0.0-rc.0`. NativeWind 4 is not supported.
+
+Read [React Native and Expo](/setup/react-native-expo) first. This guide changes only the styling parts.
+
+## Requirements
+
+- An Expo app (SDK 57 in the reference app) with the `uitheme-rn` provider set up.
+- These exact versions, from the reference app:
+
+| Package                | Version      | Why                        |
+| ---------------------- | ------------ | -------------------------- |
+| `nativewind`           | `5.0.0-rc.0` | Exact peer of `uitheme-rn` |
+| `react-native-css`     | `3.1.0-rc.0` | Exact peer of `nativewind` |
+| `tailwindcss`          | `4.3.1`      | Tailwind CSS v4            |
+| `lightningcss`         | `1.30.1`     | Compiles the CSS colors    |
+| `@tailwindcss/postcss` | `4.3.1`      | Tailwind v4 PostCSS plugin |
+| `postcss`              | `8.5.28`     | Used by the PostCSS plugin |
+
+Install one styling engine only. Do not install `uniwind` in the same app.
+
+## Install
+
+Use exact versions. A caret range (`^5.0.0-rc.0`) can select a newer release candidate that the adapter does not support.
+
+```bash
+pnpm add uitheme-rn@alpha
+pnpm add --save-exact nativewind@5.0.0-rc.0 react-native-css@3.1.0-rc.0 tailwindcss@4.3.1 lightningcss@1.30.1
+pnpm add -D --save-exact @tailwindcss/postcss@4.3.1 postcss@8.5.28
+```
+
+```bash
+npm install uitheme-rn@alpha
+npm install --save-exact nativewind@5.0.0-rc.0 react-native-css@3.1.0-rc.0 tailwindcss@4.3.1 lightningcss@1.30.1
+npm install -D --save-exact @tailwindcss/postcss@4.3.1 postcss@8.5.28
+```
+
+```bash
+yarn add uitheme-rn@alpha
+yarn add --exact nativewind@5.0.0-rc.0 react-native-css@3.1.0-rc.0 tailwindcss@4.3.1 lightningcss@1.30.1
+yarn add -D --exact @tailwindcss/postcss@4.3.1 postcss@8.5.28
+```
+
+## Configure
+
+### 1. Add the PostCSS config
+
+Create `postcss.config.mjs`.
+
+```js
+export default { plugins: { '@tailwindcss/postcss': {} } };
+```
+
+### 2. Add the Metro config
+
+Create `metro.config.cjs`. The `inlineVariables.exclude` list tells NativeWind not to inline these color variables. The adapter reads them at run time.
+
+```js
+const { getDefaultConfig } = require('expo/metro-config');
+const { withNativewind } = require('nativewind/metro');
+
+const tokens = [
+  'background',
+  'foreground',
+  'card',
+  'card-foreground',
+  'popover',
+  'popover-foreground',
+  'primary',
+  'primary-foreground',
+  'secondary',
+  'secondary-foreground',
+  'muted',
+  'muted-foreground',
+  'accent',
+  'accent-foreground',
+  'destructive',
+  'destructive-foreground',
+  'border',
+  'input',
+  'ring',
+  'chart-1',
+  'chart-2',
+  'chart-3',
+  'chart-4',
+  'chart-5',
+  'sidebar',
+  'sidebar-foreground',
+  'sidebar-primary',
+  'sidebar-primary-foreground',
+  'sidebar-accent',
+  'sidebar-accent-foreground',
+  'sidebar-border',
+  'sidebar-ring',
+];
+
+module.exports = withNativewind(getDefaultConfig(__dirname), {
+  inlineVariables: {
+    exclude: tokens.flatMap((token) => [`--${token}`, `--color-${token}`]),
+  },
+});
+```
+
+The reference app lists the same 64 names by hand. Remove tokens that your CSS does not define.
+
+### 3. Keep the default Babel config
+
+Use the Expo preset only. The reference app needs no NativeWind Babel plugin.
+
+`babel.config.cjs`:
+
+```js
+module.exports = function (api) {
+  api.cache(true);
+
+  return { presets: ['babel-preset-expo'] };
+};
+```
+
+### 4. Add type files
+
+`nativewind-env.d.ts`:
+
+```ts
+/// <reference types="react-native-css/types" />
+```
+
+`src/css.d.ts`:
+
+```ts
+declare module '*.css';
+```
+
+## Add theme CSS or palettes
+
+You have two choices. Pick one.
+
+### Choice A: Palettes in CSS
+
+CSS defines the colors. `uitheme-rn` selects the CSS class for the current palette and appearance. This is the pattern in the reference app.
+
+Create `src/global.css`. Write one class for each palette and appearance. The class name is `<palette>-<mode>`.
+
+```css
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/preflight.css' layer(base);
+@import 'tailwindcss/utilities.css';
+@import 'nativewind/theme';
+
+@theme inline static {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+}
+
+:root {
+  --background: #f9f9fa;
+  --color-background: var(--background);
+  --foreground: #333333;
+  --color-foreground: var(--foreground);
+  --card: #ffffff;
+  --color-card: var(--card);
+  --muted-foreground: #6e6e6e;
+  --color-muted-foreground: var(--muted-foreground);
+  --border: #d4d4d4;
+  --color-border: var(--border);
+  --primary: #34a85a;
+  --color-primary: var(--primary);
+  --primary-foreground: #ffffff;
+  --color-primary-foreground: var(--primary-foreground);
+}
+
+.default-light {
+  --background: #f9f9fa;
+  --color-background: var(--background);
+  /* repeat every variable from :root */
+}
+
+.default-dark {
+  --background: #1a1d23;
+  --color-background: var(--background);
+  /* repeat every variable */
+}
+```
+
+Write a `-light` and a `-dark` class for each palette. Each class must define each variable twice: `--name` and `--color-name`. The adapter reads these seven colors: `--color-background`, `--color-card`, `--color-foreground`, `--color-muted-foreground`, `--color-border`, `--color-primary`, and `--color-primary-foreground`. A missing variable produces an error that names it.
+
+Create `src/theme.ts`. The palette objects hold labels only. The `scopes` map names the CSS class for each mode.
+
+```ts
+import type { ThemeStyleScopes } from 'uitheme-rn/nativewind';
+
+export const palettes = {
+  default: { label: 'Default' },
+  mocha: { label: 'Mocha' },
+};
+
+export const scopes: ThemeStyleScopes = {
+  default: { light: 'default-light', dark: 'default-dark' },
+  mocha: { light: 'mocha-light', dark: 'mocha-dark' },
+};
+```
+
+### Choice B: Palettes in TypeScript
+
+If you already have TypeScript palettes, skip the per-palette classes. Keep the `:root` and `@theme inline static` blocks in `global.css`. Do not pass `themes`. The adapter then creates scoped variables from the TypeScript colors.
+
+```tsx
+<UIThemeProvider>
+  <NativeWindTheme>{/* app */}</NativeWindTheme>
+</UIThemeProvider>
+```
+
+CSS conversion needs string colors. Platform color objects work only in native styles.
+
+### Wire the root layout
+
+Import the CSS first. Put `NativeWindTheme` inside `UIThemeProvider`. In Expo Router, edit `src/app/_layout.tsx`.
+
+```tsx
+import '../global.css';
+import { Stack } from 'expo-router';
+import Storage from '../storage';
+import { UIThemeProvider } from 'uitheme-rn';
+import { NativeWindTheme } from 'uitheme-rn/nativewind';
+import { palettes, scopes } from '../theme';
+
+export default function Layout() {
+  return (
+    <UIThemeProvider
+      palettes={palettes}
+      defaultColorTheme="default"
+      storage={Storage}
+      fallback={null}
+    >
+      <NativeWindTheme themes={scopes}>
+        <Stack />
+      </NativeWindTheme>
+    </UIThemeProvider>
+  );
+}
+```
+
+The `storage` file is the one from [React Native and Expo](/setup/react-native-expo).
+
+The `NativeWindTheme` component throws an error when `scopes` has no class for the current palette and appearance.
+
+## Add a control
+
+Use utility classes for the layout. Use the native controls or `useUITheme` for the choices.
+
+```tsx
+import { Pressable, Text, View } from 'react-native';
+import { useUITheme } from 'uitheme-rn';
+import { UIThemeSelector, UIColorThemeSelector } from 'uitheme-rn/expo';
+
+export default function Settings() {
+  const { toggleTheme, colorTheme, resolvedTheme } = useUITheme();
+
+  return (
+    <View className="flex-1 gap-4 bg-background p-4">
+      <Text className="text-foreground">
+        {colorTheme} / {resolvedTheme}
+      </Text>
+      <UIThemeSelector />
+      <UIColorThemeSelector />
+      <Pressable onPress={toggleTheme} className="rounded-xl bg-primary p-4">
+        <Text className="text-primary-foreground">Toggle appearance</Text>
+      </Pressable>
+    </View>
+  );
+}
+```
+
+`UIThemeSelector` and `UIColorThemeSelector` need `@expo/ui`. Install it with `npx expo install @expo/ui`.
+
+## Verify it works
+
+1. Run `npx expo start --clear`. The `--clear` flag resets the Metro cache after the config change.
+2. Open the app on a device or simulator.
+3. Change the appearance. Confirm that the classes `bg-background` and `text-foreground` change color.
+4. Change the palette. Confirm that `bg-primary` changes color.
+5. Close and reopen the app. Confirm that your choices return.
+
+The NativeWind `dark:` variant follows the system appearance, not the `uitheme-rn` choice. Use the semantic colors (`bg-background`, `text-foreground`) for the palettes that `uitheme-rn` owns.
+
+## Next steps
+
+- [Transitions](/setup/transitions)
+- [Troubleshooting](/troubleshooting)

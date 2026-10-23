@@ -165,7 +165,7 @@ const templateSiteConfig: SiteConfig = {
     'Clear, task-focused guidance for building with the product.',
   repoUrl: '',
   links: [
-    { label: 'Get started', href: '/quickstart' },
+    { label: 'Get started', href: '/installation' },
     { label: 'Changelog', href: '/changelog' },
   ],
   brand: brandPresets[brandPreset],
@@ -180,7 +180,7 @@ export const siteConfig: SiteConfig = {
   description: "Setup guides for UI-Theme on React, Vue, Nuxt, and React Native.",
   repoUrl: "https://github.com/tonyedgal/ui-theme-docs",
   links: [
-    { label: "Get started", href: "/quickstart" },
+    { label: "Get started", href: "/installation" },
     { label: "Support", href: "https://github.com/tonyedgal/ui-theme-docs/issues/new" },
     { label: "GitHub", href: "https://github.com/tonyedgal/ui-theme-docs" },
     { label: "Changelog", href: "/changelog" },

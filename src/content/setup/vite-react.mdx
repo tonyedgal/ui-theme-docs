@@ -1,0 +1,209 @@
+---
+title: "Vite and React"
+description: "This guide sets up uitheme-web in a React single-page app built with Vite."
+---
+
+This guide sets up `uitheme-web` in a React single-page app built with Vite.
+
+Use `ViteUIThemeProvider`. This provider has no server code. To prevent a flash on load, you add a small script to `index.html`.
+
+## Requirements
+
+- A Vite app with React 18 or later.
+- Tailwind CSS v4, if you use the prebuilt controls.
+
+## Install
+
+```bash
+pnpm add uitheme-web @radix-ui/react-select
+```
+
+```bash
+npm install uitheme-web @radix-ui/react-select
+```
+
+```bash
+yarn add uitheme-web @radix-ui/react-select
+```
+
+## Configure
+
+### 1. Wrap the app with the provider
+
+Edit `src/main.tsx`.
+
+```tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { ViteUIThemeProvider } from 'uitheme-web/react';
+import App from './App';
+import './index.css';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <ViteUIThemeProvider
+      defaultTheme="system"
+      defaultColorTheme="default"
+      themes={['light', 'dark', 'system']}
+      colorThemes={['default', 'blue', 'green']}
+    >
+      <App />
+    </ViteUIThemeProvider>
+  </React.StrictMode>
+);
+```
+
+If you use React Router, put `BrowserRouter` outside the provider.
+
+### 2. Add the before-paint script
+
+The provider runs after React starts. Without a script, the page can show the wrong theme for a moment. Add this script to the `<head>` of `index.html`.
+
+```html
+<script>
+  (function () {
+    const storageKey = 'ui-theme';
+    const colorStorageKey = 'ui-color-theme';
+
+    function getTheme() {
+      const stored = localStorage.getItem(storageKey);
+      if (stored === 'light' || stored === 'dark') return stored;
+      if (stored === 'system' || !stored) {
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
+      }
+      return 'light';
+    }
+
+    const theme = getTheme();
+    const colorTheme = localStorage.getItem(colorStorageKey) || 'default';
+
+    document.documentElement.classList.add(theme);
+    if (colorTheme !== 'default') {
+      document.documentElement.classList.add('theme-' + colorTheme);
+    }
+  })();
+</script>
+```
+
+The storage keys in the script must match the provider. The `ViteUIThemeProvider` default keys are `ui-theme` and `ui-color-theme`. If you set `storageKey` or `colorStorageKey` on the provider, change the script to match.
+
+### Provider options
+
+| Option                      | Default                       | Purpose                                  |
+| --------------------------- | ----------------------------- | ---------------------------------------- |
+| `defaultTheme`              | `'system'`                    | Appearance when nothing is stored        |
+| `defaultColorTheme`         | `'default'`                   | Palette when nothing is stored           |
+| `themes`                    | `['light', 'dark', 'system']` | Available appearances                    |
+| `colorThemes`               | `['default']`                 | Available palettes                       |
+| `storageKey`                | `'ui-theme'`                  | `localStorage` key for the appearance    |
+| `colorStorageKey`           | `'ui-color-theme'`            | `localStorage` key for the palette       |
+| `disableTransitionOnChange` | `false`                       | Turn off CSS transitions during a change |
+
+## Add theme CSS or palettes
+
+Add the variables and the palette classes to `src/index.css`. Follow [Theme CSS](/setup/theme-css).
+
+Each name in `colorThemes` needs a `.theme-<name>` block.
+
+If you use the prebuilt controls, add the `@source` line from [Theme CSS](/setup/theme-css).
+
+## Add a control
+
+### Custom toggle
+
+Create `src/components/theme-toggle.tsx`.
+
+```tsx
+import { useViteUITheme } from 'uitheme-web/react';
+
+export function ThemeToggle() {
+  const { resolvedTheme, toggleTheme, ref } = useViteUITheme();
+
+  return (
+    <button ref={ref} type="button" onClick={() => toggleTheme()}>
+      {resolvedTheme === 'light' ? 'Dark' : 'Light'}
+    </button>
+  );
+}
+```
+
+Render it in `src/App.tsx`.
+
+```tsx
+import { ThemeToggle } from './components/theme-toggle';
+
+export default function App() {
+  return (
+    <main>
+      <h1>My app</h1>
+      <ThemeToggle />
+    </main>
+  );
+}
+```
+
+### Palette selector
+
+```tsx
+import { useViteUITheme } from 'uitheme-web/react';
+
+const palettes = ['default', 'blue', 'green'];
+
+export function PaletteSelector() {
+  const { switchColorTheme, isColorThemeActive } = useViteUITheme();
+
+  return (
+    <div>
+      {palettes.map((name) => (
+        <button
+          key={name}
+          type="button"
+          aria-pressed={isColorThemeActive(name)}
+          onClick={(event) =>
+            void switchColorTheme(name, {
+              element: event.currentTarget,
+              animationOff: event.detail === 0,
+            })
+          }
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+### Prebuilt controls
+
+```tsx
+import { UIThemeSwitcher, UIThemeSelector } from 'uitheme-web/react';
+
+export function ThemeControls() {
+  return (
+    <>
+      <UIThemeSwitcher />
+      <UIThemeSelector colorThemes={['default', 'blue', 'green']} />
+    </>
+  );
+}
+```
+
+`UIThemeSelector` renders nothing when `colorThemes` has one item or none.
+
+## Verify it works
+
+1. Run `pnpm dev`.
+2. Open the page in the browser.
+3. Click the toggle. Confirm that the page changes and that the animation plays.
+4. In the console, run `document.documentElement.className`. Confirm that the output includes `dark` after you switch to dark.
+5. Run `localStorage.getItem('ui-theme')`. Confirm that the value is `dark`.
+6. Reload the page. Confirm that the page loads in dark appearance with no flash.
+
+## Next steps
+
+- [Theme CSS](/setup/theme-css)
+- [Transitions](/setup/transitions)
+- [Troubleshooting](/troubleshooting)

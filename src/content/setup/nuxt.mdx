@@ -1,0 +1,176 @@
+---
+title: "Nuxt"
+description: "This guide sets up uitheme-vue in a Nuxt 4 app with server rendering."
+---
+
+This guide sets up `uitheme-vue` in a Nuxt 4 app with server rendering.
+
+The Nuxt module stores the theme in cookies. The server reads the cookies and renders the right classes. A blocking script in the head resolves the `system` appearance before the first paint.
+
+> `uitheme-vue` is an alpha package (`0.1.0-alpha.0`). The API can change before a stable release.
+
+## Requirements
+
+- Nuxt `^4.0.0`. The example app uses Nuxt 4.6.2.
+- Vue `^3.5.0`.
+- Node.js `^22.21.0`, `^24.11.0`, or `>=26.0.0`. This range is in the example app `engines` field.
+- Tailwind CSS v4 with `@tailwindcss/postcss`, if you want the Tailwind classes. Tailwind is optional.
+
+## Install
+
+```bash
+pnpm add uitheme-vue@alpha
+```
+
+```bash
+npm install uitheme-vue@alpha
+```
+
+```bash
+yarn add uitheme-vue@alpha
+```
+
+## Configure
+
+Add the module to `nuxt.config.ts`.
+
+```ts
+export default defineNuxtConfig({
+  compatibilityDate: '2026-10-22',
+  modules: ['uitheme-vue/nuxt'],
+  uiTheme: {
+    defaultTheme: 'system',
+    colorThemes: ['default', 'caffeine', 'mocha'],
+  },
+  css: ['~/assets/css/main.css'],
+});
+```
+
+The module does these tasks:
+
+1. It auto-imports `useUITheme` and `useVueTheme` (the alias of `useTheme`).
+2. It registers `UIThemeProvider`, `UIThemeSwitcher`, and `UIThemeSelector`.
+3. It adds a Nuxt plugin that runs for each request.
+4. It reads and checks the cookies.
+5. It sets the theme classes on `<html>` on the server.
+6. It adds a blocking theme script to the head.
+
+Do not add a second provider around the app. The module already creates the theme owner.
+
+### Cookies
+
+The module stores the choices in cookies. The cookie names are the `storageKey` and `colorStorageKey` options. The defaults are `theme` and `color-theme`. Each cookie uses path `/`, `SameSite=Lax`, and a lifetime of one year.
+
+Cookie storage replaces `localStorage` for Nuxt. The `storage`, `onThemeChange`, and `onColorThemeChange` options are not available in `uiTheme`.
+
+### Module options
+
+| Option              | Default                       | Purpose                          |
+| ------------------- | ----------------------------- | -------------------------------- |
+| `themes`            | `['light', 'dark', 'system']` | Available appearances            |
+| `defaultTheme`      | `'system'`                    | Appearance when no cookie exists |
+| `colorThemes`       | `['default']`                 | Available palettes               |
+| `defaultColorTheme` | First item of `colorThemes`   | Palette when no cookie exists    |
+| `storageKey`        | `'theme'`                     | Cookie name for the appearance   |
+| `colorStorageKey`   | `'color-theme'`               | Cookie name for the palette      |
+| `globalClassName`   | `'dark'`                      | Class for dark appearance        |
+| `colorThemePrefix`  | `'theme-'`                    | Prefix for palette classes       |
+
+The module also accepts the transition options. See [Transitions](/setup/transitions).
+
+### SSR rules
+
+- The server renders with the cookie values. The client starts with the same values. The client then resolves the `system` appearance after hydration.
+- Wait for `mounted` before you render text or icons that depend on the system appearance.
+- Do not read storage at module scope on the server.
+- Do not create a shared theme instance at module scope on the server.
+
+## Add theme CSS or palettes
+
+Install Tailwind CSS v4 with the PostCSS plugin.
+
+```bash
+pnpm add -D tailwindcss @tailwindcss/postcss
+```
+
+Enable the plugin in `nuxt.config.ts`.
+
+```ts
+export default defineNuxtConfig({
+  // ...
+  postcss: { plugins: { '@tailwindcss/postcss': {} } },
+});
+```
+
+Create `app/assets/css/main.css`. Follow [Theme CSS](/setup/theme-css).
+
+```css
+@import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: white;
+  --foreground: #171717;
+  --primary: #34a85a;
+}
+
+.dark {
+  --background: #171717;
+  --foreground: white;
+}
+
+.theme-mocha {
+  --primary: #a37764;
+}
+
+.theme-mocha.dark {
+  --primary: #c39e88;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+}
+```
+
+Each name in `colorThemes` can have a `.theme-<name>` block.
+
+## Add a control
+
+Edit `app/app.vue`.
+
+```vue
+<script setup lang="ts">
+const { theme, colorTheme, mounted, toggleTheme } = useUITheme();
+</script>
+
+<template>
+  <div>
+    <UIThemeSwitcher />
+    <UIThemeSelector />
+    <button :disabled="!mounted" @click="toggleTheme($event)">
+      Change appearance
+    </button>
+    <p v-if="mounted">{{ theme }} / {{ colorTheme }}</p>
+  </div>
+</template>
+```
+
+`useUITheme`, `UIThemeSwitcher`, and `UIThemeSelector` need no import. The module registers them.
+
+## Verify it works
+
+1. Run `pnpm dev`.
+2. Open the page in the browser.
+3. Use the controls. Confirm that the page changes and that the animation plays.
+4. Open the browser storage panel. Confirm that the cookies `theme` and `color-theme` exist.
+5. Reload the page. Confirm that the page loads in the same theme with no flash.
+6. Run `curl -s http://localhost:3000 -H "Cookie: theme=dark"` in a terminal. Confirm that the `<html>` tag in the response has the class `dark`. Use the port that your dev server prints.
+7. Run `pnpm build`. Confirm that the build finishes.
+
+## Next steps
+
+- [Theme CSS](/setup/theme-css)
+- [Transitions](/setup/transitions)
+- [Troubleshooting](/troubleshooting)

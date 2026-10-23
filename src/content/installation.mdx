@@ -1,0 +1,152 @@
+---
+title: "Installation"
+description: "This page helps you choose a package and install it."
+---
+
+This page helps you choose a package and install it. Then follow the setup guide for your framework.
+
+## Choose a package
+
+| Your app uses                       | Package       | Setup guide                                           |
+| ----------------------------------- | ------------- | ----------------------------------------------------- |
+| Next.js                             | `uitheme-web` | [Next.js](/setup/nextjs)                          |
+| React with Vite                     | `uitheme-web` | [Vite and React](/setup/vite-react)               |
+| TanStack Start                      | `uitheme-web` | [TanStack Start](/setup/tanstack-start)           |
+| Vue 3 with Vite                     | `uitheme-vue` | [Vue](/setup/vue)                                 |
+| Nuxt 4                              | `uitheme-vue` | [Nuxt](/setup/nuxt)                               |
+| Expo or React Native (`StyleSheet`) | `uitheme-rn`  | [React Native and Expo](/setup/react-native-expo) |
+| Expo with NativeWind 5              | `uitheme-rn`  | [NativeWind](/setup/nativewind)                   |
+| Expo with Uniwind                   | `uitheme-rn`  | [Uniwind](/setup/uniwind)                         |
+
+Install one engine package for each app. Do not install both `nativewind` and `uniwind` in the same app.
+
+## Install the web package
+
+`uitheme-web` is stable. The `latest` tag points to version 1.1.0.
+
+```bash
+pnpm add uitheme-web @radix-ui/react-select
+```
+
+```bash
+npm install uitheme-web @radix-ui/react-select
+```
+
+```bash
+yarn add uitheme-web @radix-ui/react-select
+```
+
+`@radix-ui/react-select` is a required peer dependency. The prebuilt `UIThemeSelector` uses it.
+
+### Web peer requirements
+
+| Peer                     | Range      | Required                         |
+| ------------------------ | ---------- | -------------------------------- |
+| `react`                  | `>=18.0.0` | Optional. Needed for React entry |
+| `react-dom`              | `>=18.0.0` | Optional. Needed for React entry |
+| `@radix-ui/react-select` | `>=2.0.0`  | Yes                              |
+
+The package has these entry points:
+
+| Entry                  | Content                                                 |
+| ---------------------- | ------------------------------------------------------- |
+| `uitheme-web/react`    | Providers, hooks, `UIThemeSwitcher`, `UIThemeSelector`  |
+| `uitheme-web/core`     | Framework-neutral core, `ThemeAnimationType`, constants |
+| `uitheme-web/tanstack` | Server helpers for TanStack Start                       |
+
+If you use the prebuilt controls, your app must also use Tailwind CSS v4. See [Theme CSS](/setup/theme-css).
+
+### Move from `@ui-theme/web`
+
+The old name `@ui-theme/web` is deprecated. Run this command in your project:
+
+```bash
+npx uitheme-web migrate
+```
+
+The command lists the files it will change. It asks for confirmation. Use `--yes` to skip the question. Use `--cwd <dir>` to work on another directory.
+
+## Install the Vue package
+
+`uitheme-vue` is an alpha package. The publish configuration uses the `alpha` tag.
+
+> At the time of writing, the npm registry did not list `uitheme-vue`. The install commands work after the package is published.
+
+```bash
+pnpm add uitheme-vue@alpha
+```
+
+```bash
+npm install uitheme-vue@alpha
+```
+
+```bash
+yarn add uitheme-vue@alpha
+```
+
+### Vue peer requirements
+
+| Requirement | Range    |
+| ----------- | -------- |
+| `vue`       | `^3.5.0` |
+| Nuxt        | `^4.0.0` |
+
+For Nuxt, use Node.js `^22.21.0`, `^24.11.0`, or `>=26.0.0`. This range comes from the Nuxt example app. See [Troubleshooting](/troubleshooting).
+
+## Install the React Native package
+
+`uitheme-rn` is an alpha package. Version `0.1.0-alpha` is for early testing. Device validation is not complete.
+
+```bash
+pnpm add uitheme-rn@alpha
+```
+
+```bash
+npm install uitheme-rn@alpha
+```
+
+```bash
+yarn add uitheme-rn@alpha
+```
+
+The `latest` and `alpha` tags both point to `0.1.0-alpha`.
+
+Install optional peers with Expo. Expo selects the version that matches your SDK.
+
+```bash
+npx expo install @expo/ui expo-sqlite
+npx expo install react-native-reanimated react-native-worklets
+```
+
+### React Native peer requirements
+
+| Peer                         | Range                | Needed for                                 |
+| ---------------------------- | -------------------- | ------------------------------------------ |
+| `react`                      | `>=19.2.0 <20`       | Always                                     |
+| `react-native`               | `>=0.83.0 <0.87`     | Always                                     |
+| `@expo/ui`                   | `>=56.0.0 <58`       | Optional. `uitheme-rn/expo` controls       |
+| `react-native-reanimated`    | `>=4.5.1 <4.6`       | Optional. `/reanimated` and `/transitions` |
+| `react-native-worklets`      | `>=0.10.1 <0.11`     | Optional. `/reanimated` and `/transitions` |
+| `@shopify/react-native-skia` | `>=2.11.1 <2.12`     | Optional. `/transitions`                   |
+| `nativewind`                 | `5.0.0-rc.0` (exact) | Optional. `/nativewind`                    |
+| `uniwind`                    | `>=1.12.2 <2`        | Optional. `/uniwind`                       |
+
+The package depends on `zod` at run time. Your package manager installs it for you.
+
+The reference app uses Expo SDK 57, React 19.2.3, and React Native 0.86.3. The declared React Native range starts at 0.83. Versions older than the reference app need device checks.
+
+The package has these entry points:
+
+| Entry                    | Content                                                 | Extra peers                |
+| ------------------------ | ------------------------------------------------------- | -------------------------- |
+| `uitheme-rn`             | Provider, hooks, default palettes, theme tokens         | None                       |
+| `uitheme-rn/core`        | Headless `createThemeStore`. No React Native import     | None                       |
+| `uitheme-rn/expo`        | Native pickers and button (SwiftUI and Jetpack Compose) | `@expo/ui`                 |
+| `uitheme-rn/reanimated`  | `useThemeTransition` color styles                       | Reanimated, Worklets       |
+| `uitheme-rn/transitions` | Skia screen effects                                     | Skia, Reanimated, Worklets |
+| `uitheme-rn/nativewind`  | `NativeWindTheme` adapter                               | `nativewind`               |
+| `uitheme-rn/uniwind`     | `UniwindTheme` adapter                                  | `uniwind`                  |
+
+## Next steps
+
+Open the setup guide for your framework from the table at the top of this page.

@@ -1,0 +1,235 @@
+---
+title: "Uniwind"
+description: "This guide connects uitheme-rn to Uniwind."
+---
+
+This guide connects `uitheme-rn` to Uniwind. You use utility classes such as `bg-background` and `text-foreground`. The classes use the same colors as the `uitheme-rn` store.
+
+> **Alpha.** `uitheme-rn` is version `0.1.0-alpha`. The reference app uses Uniwind 1.12.2.
+
+Read [React Native and Expo](/setup/react-native-expo) first. This guide changes only the styling parts.
+
+## Requirements
+
+- An Expo app (SDK 57 in the reference app) with the `uitheme-rn` provider set up.
+- `uniwind` in the range `>=1.12.2 <2`.
+- `tailwindcss` 4. The reference app uses `4.3.1`.
+
+Install one styling engine only. Do not install `nativewind` in the same app.
+
+## Install
+
+```bash
+pnpm add uitheme-rn@alpha uniwind tailwindcss
+```
+
+```bash
+npm install uitheme-rn@alpha uniwind tailwindcss
+```
+
+```bash
+yarn add uitheme-rn@alpha uniwind tailwindcss
+```
+
+To match the reference app, pin `uniwind@1.12.2` and `tailwindcss@4.3.1`.
+
+## Configure
+
+### 1. Add the Metro config
+
+Create `metro.config.cjs`. Uniwind needs the CSS entry file. List every theme name in `extraThemes`.
+
+```js
+const { getDefaultConfig } = require('expo/metro-config');
+const { withUniwindConfig } = require('uniwind/metro');
+
+module.exports = withUniwindConfig(getDefaultConfig(__dirname), {
+  cssEntryFile: './src/global.css',
+  dtsFile: './src/uniwind-types.d.ts',
+  extraThemes: ['default-light', 'default-dark', 'mocha-light', 'mocha-dark'],
+});
+```
+
+Uniwind writes the file at `dtsFile`. Do not edit that file by hand. The names in `extraThemes` must match the names in your `scopes` map.
+
+### 2. Add the type file
+
+`uniwind-env.d.ts`:
+
+```ts
+/// <reference types="uniwind/types" />
+```
+
+`src/css.d.ts`:
+
+```ts
+declare module '*.css';
+```
+
+## Add theme CSS or palettes
+
+You have two choices. Pick one.
+
+### Choice A: Palettes in CSS
+
+CSS defines the colors. `uitheme-rn` selects the registered theme for the current palette and appearance. This is the pattern in the reference app.
+
+Create `src/global.css`. Write one `@variant` block for each theme name.
+
+```css
+@import 'tailwindcss';
+@import 'uniwind';
+
+@theme inline static {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+}
+
+@layer theme {
+  :root {
+    @variant default-light {
+      --background: #f9f9fa;
+      --color-background: var(--background);
+      --foreground: #333333;
+      --color-foreground: var(--foreground);
+      --card: #ffffff;
+      --color-card: var(--card);
+      --muted-foreground: #6e6e6e;
+      --color-muted-foreground: var(--muted-foreground);
+      --border: #d4d4d4;
+      --color-border: var(--border);
+      --primary: #34a85a;
+      --color-primary: var(--primary);
+      --primary-foreground: #ffffff;
+      --color-primary-foreground: var(--primary-foreground);
+    }
+    @variant default-dark {
+      --background: #1a1d23;
+      --color-background: var(--background);
+      /* repeat every variable */
+    }
+    @variant mocha-light {
+      /* repeat every variable */
+    }
+    @variant mocha-dark {
+      /* repeat every variable */
+    }
+    @variant light {
+      /* the same values as default-light */
+    }
+    @variant dark {
+      /* the same values as default-dark */
+    }
+  }
+}
+```
+
+Each block defines each variable twice: `--name` and `--color-name`. The adapter reads these seven colors: `--color-background`, `--color-card`, `--color-foreground`, `--color-muted-foreground`, `--color-border`, `--color-primary`, and `--color-primary-foreground`. A missing variable produces an error that names it.
+
+The reference app also defines the built-in `light` and `dark` variants with the default palette values. Do the same, so that classes still work outside the scoped themes.
+
+Create `src/theme.ts`. The palette objects hold labels only. The `scopes` map names the registered theme for each mode.
+
+```ts
+import type { ThemeStyleScopes } from 'uitheme-rn/uniwind';
+
+export const palettes = {
+  default: { label: 'Default' },
+  mocha: { label: 'Mocha' },
+};
+
+export const scopes: ThemeStyleScopes = {
+  default: { light: 'default-light', dark: 'default-dark' },
+  mocha: { light: 'mocha-light', dark: 'mocha-dark' },
+};
+```
+
+### Choice B: Palettes in TypeScript
+
+If you already have TypeScript palettes, do not pass `themes`. The adapter then scopes the built-in `light` or `dark` theme and adds variables from your TypeScript colors.
+
+```tsx
+<UIThemeProvider>
+  <UniwindTheme>{/* app */}</UniwindTheme>
+</UIThemeProvider>
+```
+
+CSS conversion needs string colors. Platform color objects work only in native styles.
+
+### Wire the root layout
+
+Import the CSS first. Put `UniwindTheme` inside `UIThemeProvider`. In Expo Router, edit `src/app/_layout.tsx`.
+
+```tsx
+import '../global.css';
+import { Stack } from 'expo-router';
+import Storage from '../storage';
+import { UIThemeProvider } from 'uitheme-rn';
+import { UniwindTheme } from 'uitheme-rn/uniwind';
+import { palettes, scopes } from '../theme';
+
+export default function Layout() {
+  return (
+    <UIThemeProvider
+      palettes={palettes}
+      defaultColorTheme="default"
+      storage={Storage}
+      fallback={null}
+    >
+      <UniwindTheme themes={scopes}>
+        <Stack />
+      </UniwindTheme>
+    </UIThemeProvider>
+  );
+}
+```
+
+The `storage` file is the one from [React Native and Expo](/setup/react-native-expo).
+
+The `UniwindTheme` component throws an error when `scopes` has no theme for the current palette and appearance.
+
+## Add a control
+
+```tsx
+import { Pressable, Text, View } from 'react-native';
+import { useUITheme } from 'uitheme-rn';
+import { UIThemeSelector, UIColorThemeSelector } from 'uitheme-rn/expo';
+
+export default function Settings() {
+  const { toggleTheme, colorTheme, resolvedTheme } = useUITheme();
+
+  return (
+    <View className="flex-1 gap-4 bg-background p-4">
+      <Text className="text-foreground">
+        {colorTheme} / {resolvedTheme}
+      </Text>
+      <UIThemeSelector />
+      <UIColorThemeSelector />
+      <Pressable onPress={toggleTheme} className="rounded-xl bg-primary p-4">
+        <Text className="text-primary-foreground">Toggle appearance</Text>
+      </Pressable>
+    </View>
+  );
+}
+```
+
+`UIThemeSelector` and `UIColorThemeSelector` need `@expo/ui`. Install it with `npx expo install @expo/ui`.
+
+## Verify it works
+
+1. Run `npx expo start --clear`. The `--clear` flag resets the Metro cache after the config change.
+2. Open the app on a device or simulator.
+3. Change the appearance. Confirm that `bg-background` and `text-foreground` change color.
+4. Change the palette. Confirm that `bg-primary` changes color.
+5. Confirm that `src/uniwind-types.d.ts` exists and lists your theme names.
+6. Close and reopen the app. Confirm that your choices return.
+
+## Next steps
+
+- [Transitions](/setup/transitions)
+- [Troubleshooting](/troubleshooting)

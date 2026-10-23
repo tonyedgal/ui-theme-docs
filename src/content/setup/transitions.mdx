@@ -1,0 +1,353 @@
+---
+title: "Transitions"
+description: "This page shows how to turn on animated theme changes."
+---
+
+This page shows how to turn on animated theme changes. It covers the web packages and the native package. It does not list every option. See the package README files for the full API.
+
+Transitions are optional. Theme switching works without them.
+
+## Web: seven effects
+
+`uitheme-web` and `uitheme-vue` have the same seven effects.
+
+| Effect (`ThemeAnimationType`) | Value                | What it does                                | Main options                                                    |
+| ----------------------------- | -------------------- | ------------------------------------------- | --------------------------------------------------------------- |
+| `CIRCLE`                      | `'circle'`           | A circle grows from the trigger. Default    | `animationPosition`                                             |
+| `BLUR_CIRCLE`                 | `'blur-circle'`      | A circle with a soft edge                   | `animationPosition`, `blurAmount`                               |
+| `SLIDE`                       | `'slide'`            | The new theme slides in                     | `slideDirection`                                                |
+| `CLIP_PATH`                   | `'clip-path'`        | A sharp polygon wipe                        | `clipPathDirection`                                             |
+| `POLYGON_GRADIENT`            | `'polygon-gradient'` | A polygon wipe with a soft edge             | `clipPathDirection`, `gradientWidth`                            |
+| `TRIANGLE`                    | `'triangle'`         | A triangle grows from its origin            | `animationPosition`                                             |
+| `SVG_LOGO`                    | `'svg-logo'`         | A circle reveal with a still logo at center | `logo` or `logoLight` and `logoDark`, `logoWidth`, `logoHeight` |
+
+### Requirements
+
+- A browser with the View Transitions API. The existing guides name Chrome and Edge 111 or later.
+- No extra package.
+
+If the browser does not support the API, the theme changes at once. The theme also changes at once when the user turns on reduced motion or when a capture fails. In Vue, a duration of `0` also skips the animation.
+
+### Enable on React
+
+Set the options on the provider. This example uses Next.js.
+
+```tsx
+'use client';
+
+import { NextUIThemeProvider, ThemeAnimationType } from 'uitheme-web/react';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <NextUIThemeProvider
+      animationType={ThemeAnimationType.CLIP_PATH}
+      clipPathDirection="top-right"
+      duration={600}
+    >
+      {children}
+    </NextUIThemeProvider>
+  );
+}
+```
+
+The same options work on `ViteUIThemeProvider`, `TanStackUIThemeProvider`, `UIThemeProvider`, the `useTheme` hook, `UIThemeSwitcher`, and `UIThemeSelector`.
+
+| Option              | Default                     | Notes                                                                                    |
+| ------------------- | --------------------------- | ---------------------------------------------------------------------------------------- |
+| `animationType`     | `ThemeAnimationType.CIRCLE` | One of the seven effects                                                                 |
+| `duration`          | `400`                       | Milliseconds                                                                             |
+| `animationPosition` | Trigger, else center        | A direction, `'center'`, or `'trigger'`. For circle and triangle effects                 |
+| `clipPathDirection` | `'top-left'`                | `top-left`, `top`, `top-right`, `right`, `bottom-right`, `bottom`, `bottom-left`, `left` |
+| `gradientWidth`     | `80`                        | CSS pixels. For `POLYGON_GRADIENT`                                                       |
+
+`slideDirection` and `blurAmount` are options of the `useTheme` hook. The React provider components do not take them.
+
+### Choose the origin
+
+The animation starts at the clicked element. Pass the element when you call an action.
+
+```tsx
+<button
+  onClick={(event) =>
+    void toggleTheme({
+      element: event.currentTarget,
+      animationOff: event.detail === 0,
+    })
+  }
+>
+  Toggle
+</button>
+```
+
+- `element` uses the center of the element.
+- `origin: { x, y }` uses viewport coordinates in CSS pixels. Do not multiply them by `devicePixelRatio`.
+- `animationOff: true` skips the animation. `event.detail === 0` is true for keyboard activation.
+- A boolean works too. `toggleTheme(true)` turns the animation off.
+
+### SVG logo effect
+
+Give the effect a self-contained SVG file.
+
+```tsx
+<NextUIThemeProvider
+  animationType={ThemeAnimationType.SVG_LOGO}
+  logo="/brand.svg"
+  logoWidth={120}
+  duration={600}
+>
+  {children}
+</NextUIThemeProvider>
+```
+
+To use a different logo for each direction, set `logoLight` and `logoDark` together. Do not set `logo` with them.
+
+- `logoDark` is shown for a dark-to-light change. Use a light or white logo.
+- `logoLight` is shown for a light-to-dark change. Use a dark or black logo.
+
+`logoWidth` and `logoHeight` accept a number of CSS pixels or `'auto'`. If you set one, the other keeps the aspect ratio. If you set neither, the width is 96. The logo is always at the center of the viewport. If the logo is missing or is not an SVG, the circle effect runs.
+
+### Enable on Vue
+
+Import `ThemeAnimationType` from `uitheme-vue`. Set app-wide defaults in the plugin options.
+
+```ts
+import { createUITheme, ThemeAnimationType } from 'uitheme-vue';
+
+createUITheme({
+  animationType: ThemeAnimationType.BLUR_CIRCLE,
+  duration: 600,
+});
+```
+
+To set options for one component, pass an object or a getter to `useUITheme`.
+
+```vue
+<script setup lang="ts">
+import { useUITheme, ThemeAnimationType } from 'uitheme-vue';
+
+const { ref: trigger, toggleTheme } = useUITheme(() => ({
+  animationType: ThemeAnimationType.CIRCLE,
+  duration: 600,
+  animationPosition: 'trigger',
+}));
+</script>
+
+<template>
+  <button ref="trigger" @click="toggleTheme($event)">Toggle</button>
+</template>
+```
+
+The Vue options also include `easing`, `blurAmount`, `slideDirection`, `slideFromX`, `slideFromY`, `slideToX`, and `slideToY`.
+
+In Nuxt, put the same transition options in the `uiTheme` key of `nuxt.config.ts`.
+
+## Native: Reanimated colors
+
+This option animates the background, border, and text colors of your own components. Each change takes 180 ms. It needs Reanimated.
+
+### Requirements
+
+- `react-native-reanimated` `>=4.5.1 <4.6`.
+- `react-native-worklets` `>=0.10.1 <0.11`.
+- The React Native New Architecture.
+- Bare React Native only: the Worklets Babel plugin from the Reanimated installation guide.
+
+### Install
+
+```bash
+npx expo install react-native-reanimated react-native-worklets
+```
+
+### Use
+
+```tsx
+import Animated from 'react-native-reanimated';
+import { useUITheme } from 'uitheme-rn';
+import { useThemeTransition } from 'uitheme-rn/reanimated';
+
+export function Card() {
+  const { colors } = useUITheme();
+  const transition = useThemeTransition();
+
+  return (
+    <Animated.View
+      style={{
+        ...transition.view,
+        backgroundColor: colors.surface,
+        borderColor: colors.separator,
+        borderWidth: 1,
+        padding: 16,
+      }}
+    >
+      <Animated.Text style={{ ...transition.text, color: colors.text }}>
+        Hello
+      </Animated.Text>
+    </Animated.View>
+  );
+}
+```
+
+Follow these rules:
+
+1. Use `Animated.View` and `Animated.Text`. Plain `View` and `Text` do not animate.
+2. Use `transition.view` for surfaces. It animates `backgroundColor` and `borderColor`.
+3. Use `transition.text` for text. It also animates `color`. Text and background colors can both change at once. This can lower contrast for a short time. For screens with long text, animate surfaces only and set text colors at once.
+4. Use string colors. Platform color objects do not interpolate.
+
+The transition starts after the saved choices are restored. The first render and the restore do not animate. When the user turns on Reduce Motion, the colors change at once.
+
+## Native: Skia screen effects
+
+This option captures the old screen and the new screen. It then plays a shader effect between them. It uses Skia and Reanimated.
+
+> **Alpha.** This entry needs a custom native build. It does not work in Expo Go.
+
+### Requirements
+
+- `@shopify/react-native-skia` `>=2.11.1 <2.12`. Use `2.11.1` or a 2.11 patch release.
+- `react-native-reanimated` `>=4.5.1 <4.6` and `react-native-worklets` `>=0.10.1 <0.11`.
+- A custom native build (a development build or a release build).
+
+Expo SDK 57 bundles Skia 2.6.2. That version has a broken Android capture path. You must override it with 2.11.x.
+
+### Install
+
+Do not use `expo install` for Skia. Expo would pick the bundled version. Install the exact version.
+
+```bash
+npx expo install react-native-reanimated react-native-worklets
+pnpm add @shopify/react-native-skia@2.11.1
+```
+
+Tell Expo not to replace Skia. Add this to `package.json`:
+
+```json
+{
+  "expo": {
+    "install": {
+      "exclude": ["@shopify/react-native-skia"]
+    }
+  }
+}
+```
+
+Rebuild the native app.
+
+```bash
+npx expo prebuild
+npx expo run:ios
+```
+
+Use `npx expo run:android` for Android.
+
+### Configure
+
+Place `UIThemeTransitionProvider` inside `UIThemeProvider`. Place it around the navigation tree. If you use NativeWind or Uniwind, place it inside the adapter component.
+
+```tsx
+import { UIThemeProvider, defaultPalettes } from 'uitheme-rn';
+import { UIThemeTransitionProvider } from 'uitheme-rn/transitions';
+
+const palettes = {
+  ...defaultPalettes,
+  forest: {
+    label: 'Forest',
+    light: { ...defaultPalettes.default.light, accent: '#216E46' },
+    dark: { ...defaultPalettes.default.dark, accent: '#80D6A5' },
+  },
+};
+
+export default function App() {
+  return (
+    <UIThemeProvider palettes={palettes}>
+      <UIThemeTransitionProvider defaults={{ transition: 'circularReveal' }}>
+        <Controls />
+      </UIThemeTransitionProvider>
+    </UIThemeProvider>
+  );
+}
+```
+
+Provider props:
+
+| Prop       | Purpose                                                             |
+| ---------- | ------------------------------------------------------------------- |
+| `defaults` | Default effect options                                              |
+| `enabled`  | Set to `false` to skip captures. Use it while a screen is moving    |
+| `onError`  | Receives capture errors. A failed capture changes the theme at once |
+
+### Use
+
+Use `useAnimatedUITheme()` for animated changes. It returns everything from `useUITheme()`. It replaces `setTheme`, `setColorTheme`, `toggleTheme`, and `toggleColorTheme` with versions that animate and return a promise.
+
+```tsx
+import { Button, View } from 'react-native';
+import { useAnimatedUITheme } from 'uitheme-rn/transitions';
+
+export function Controls() {
+  const { setTheme, setColorTheme, isTransitioning } = useAnimatedUITheme();
+
+  return (
+    <View>
+      <Button
+        title="Dark mode"
+        disabled={isTransitioning}
+        onPress={() => {
+          void setTheme('dark');
+        }}
+      />
+      <Button
+        title="Forest palette"
+        disabled={isTransitioning}
+        onPress={() => {
+          void setColorTheme('forest', { transition: 'wipe' });
+        }}
+      />
+    </View>
+  );
+}
+```
+
+The nine effects are `fade`, `circularReveal`, `wipe`, `slide`, `split`, `heart`, `star`, `pixelize`, and `dissolve`. The default duration is 350 ms.
+
+Per-call options:
+
+| Option       | Purpose                                                    |
+| ------------ | ---------------------------------------------------------- |
+| `transition` | The effect name                                            |
+| `duration`   | Milliseconds                                               |
+| `origin`     | A view ref, or a `{ x, y }` point relative to the provider |
+| `inverted`   | Reverse shape and split reveals                            |
+| `direction`  | `'left'`, `'right'`, `'up'`, or `'down'`                   |
+| `split`      | `'left-right'` or `'top-bottom'`                           |
+| `blockSize`  | Block size for `pixelize`                                  |
+| `noiseSize`  | Noise size for `dissolve`                                  |
+| `animated`   | Set to `false` to skip the effect                          |
+
+Follow these rules:
+
+1. Do not combine this provider with per-element color transitions on the same tree.
+2. The Expo native controls accept `onValueChange` (and the switcher accepts `onPress`). Use them to call the animated commands.
+3. While an effect plays, a second request is rejected before the theme changes. Disable your controls while `isTransitioning` is `true`.
+4. In Expo Router, set `enabled={false}` during stack navigation. Use the `transitionStart` and `transitionEnd` events of the stack.
+5. Reduce Motion skips the effect. The system status bar, the keyboard, and alerts are outside the captured tree.
+
+## Verify it works
+
+Web:
+
+1. Start the dev server in a supported browser.
+2. Click the toggle. Confirm that the effect plays from the clicked element.
+3. Press Enter on the focused toggle. Confirm that the theme changes without the effect.
+4. Turn on reduced motion in the operating system. Confirm that the theme changes at once.
+
+Native:
+
+1. Rebuild the app after you add Skia.
+2. Run a change from `useAnimatedUITheme`. Confirm that the effect plays.
+3. Turn on Reduce Motion in the device settings. Confirm that the change is immediate.
+
+## Next steps
+
+- [Theme CSS](/setup/theme-css)
+- [Troubleshooting](/troubleshooting)

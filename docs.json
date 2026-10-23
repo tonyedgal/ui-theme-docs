@@ -18,47 +18,52 @@
   "navbar": {
     "primary": {
       "label": "Get started",
-      "href": "/quickstart"
+      "href": "/installation"
     }
   },
   "tabs": [
     {
-      "tab": "Get started",
-      "groups": [
-        {
-          "group": "Get started",
-          "pages": ["introduction", "quickstart"]
-        },
-        {
-          "group": "Design your docs",
-          "pages": ["components", "customization"]
-        }
-      ]
-    },
-    {
-      "tab": "Guides",
-      "groups": [
-        {
-          "group": "Work with Thally",
-          "pages": [
-            "guides/create-a-site",
-            "guides/work-with-the-cli",
-            "guides/connect-ai-tools"
-          ]
-        }
-      ]
-    },
-    {
-      "tab": "API Reference",
+      "tab": "Setup guides",
       "groups": [
         {
           "group": "Overview",
-          "pages": ["api/introduction", "api/authentication"]
+          "pages": [
+            "introduction",
+            "installation"
+          ]
+        },
+        {
+          "group": "Web setup",
+          "pages": [
+            "setup/nextjs",
+            "setup/vite-react",
+            "setup/tanstack-start",
+            "setup/vue",
+            "setup/nuxt"
+          ]
+        },
+        {
+          "group": "Native setup",
+          "pages": [
+            "setup/react-native-expo",
+            "setup/nativewind",
+            "setup/uniwind"
+          ]
+        },
+        {
+          "group": "Shared",
+          "pages": [
+            "setup/theme-css",
+            "setup/transitions"
+          ]
+        },
+        {
+          "group": "Help",
+          "pages": [
+            "troubleshooting"
+          ]
         }
-      ],
-      "api": {
-        "source": "openapi.yaml"
-      }
+      ]
     },
     {
       "tab": "Changelog",

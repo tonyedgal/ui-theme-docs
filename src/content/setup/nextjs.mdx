@@ -1,0 +1,270 @@
+---
+title: "Next.js"
+description: "This guide sets up uitheme-web in a Next.js app."
+---
+
+This guide sets up `uitheme-web` in a Next.js app. It covers the App Router first. The Pages Router is at the end.
+
+Use `NextUIThemeProvider`. It adds a script that runs before React hydrates. The script prevents a flash of the wrong theme.
+
+## Requirements
+
+- A Next.js app. The example app uses Next.js 16.4.1.
+- React 18 or later. The example app uses React 19.2.3.
+- Tailwind CSS v4, if you use the prebuilt controls.
+
+## Install
+
+```bash
+pnpm add uitheme-web @radix-ui/react-select
+```
+
+```bash
+npm install uitheme-web @radix-ui/react-select
+```
+
+```bash
+yarn add uitheme-web @radix-ui/react-select
+```
+
+## Configure
+
+### 1. Create the provider
+
+Create `app/providers.tsx`. The file must be a client component.
+
+```tsx
+'use client';
+
+import { NextUIThemeProvider } from 'uitheme-web/react';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <NextUIThemeProvider
+      defaultTheme="system"
+      defaultColorTheme="default"
+      themes={['light', 'dark', 'system']}
+      colorThemes={['default', 'blue', 'green']}
+    >
+      {children}
+    </NextUIThemeProvider>
+  );
+}
+```
+
+### 2. Wrap the root layout
+
+Edit `app/layout.tsx`.
+
+```tsx
+import { Providers } from './providers';
+import './globals.css';
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+Keep `suppressHydrationWarning` on the `<html>` tag. The script changes the classes before React hydrates. Without the attribute, React reports a mismatch.
+
+Place the provider as high in the tree as you can.
+
+### Provider options
+
+| Option                      | Default                       | Purpose                                             |
+| --------------------------- | ----------------------------- | --------------------------------------------------- |
+| `defaultTheme`              | `'system'`                    | Appearance when nothing is stored                   |
+| `defaultColorTheme`         | `'default'`                   | Palette when nothing is stored                      |
+| `themes`                    | `['light', 'dark', 'system']` | Available appearances                               |
+| `colorThemes`               | `['default']`                 | Available palettes                                  |
+| `storageKey`                | `'theme'`                     | `localStorage` key for the appearance               |
+| `colorStorageKey`           | `'color-theme'`               | `localStorage` key for the palette                  |
+| `nonce`                     | None                          | CSP nonce for the inline script                     |
+| `disablePreHydrationScript` | `false`                       | Remove the script. Do this only if you add your own |
+
+The transition options (`animationType`, `duration`, and others) are in [Transitions](/setup/transitions).
+
+## Add theme CSS or palettes
+
+Add the variables and the palette classes to `app/globals.css`. Follow [Theme CSS](/setup/theme-css).
+
+Each name in `colorThemes` needs a `.theme-<name>` block. In this guide, add `.theme-blue` and `.theme-green`.
+
+If you use the prebuilt controls, add the `@source` line from [Theme CSS](/setup/theme-css).
+
+## Add a control
+
+### Custom toggle
+
+Create `components/theme-toggle.tsx`.
+
+```tsx
+'use client';
+
+import { useNextUITheme } from 'uitheme-web/react';
+
+export function ThemeToggle() {
+  const { resolvedTheme, toggleTheme, ref } = useNextUITheme();
+
+  return (
+    <button ref={ref} type="button" onClick={() => toggleTheme()}>
+      {resolvedTheme === 'light' ? 'Dark' : 'Light'}
+    </button>
+  );
+}
+```
+
+The `ref` sets the origin of the animation. Attach it to one trigger only.
+
+### Palette selector
+
+```tsx
+'use client';
+
+import { useNextUITheme } from 'uitheme-web/react';
+
+const palettes = ['default', 'blue', 'green'];
+
+export function PaletteSelector() {
+  const { switchColorTheme, isColorThemeActive } = useNextUITheme();
+
+  return (
+    <div>
+      {palettes.map((name) => (
+        <button
+          key={name}
+          type="button"
+          aria-pressed={isColorThemeActive(name)}
+          onClick={(event) =>
+            void switchColorTheme(name, {
+              element: event.currentTarget,
+              animationOff: event.detail === 0,
+            })
+          }
+        >
+          {name}
+        </button>
+      ))}
+    </div>
+  );
+}
+```
+
+`event.detail === 0` is true for keyboard activation. The code skips the animation in that case.
+
+### Prebuilt controls
+
+```tsx
+'use client';
+
+import { UIThemeSwitcher, UIThemeSelector } from 'uitheme-web/react';
+
+export function ThemeControls() {
+  return (
+    <>
+      <UIThemeSwitcher />
+      <UIThemeSelector colorThemes={['default', 'blue', 'green']} />
+    </>
+  );
+}
+```
+
+`UIThemeSelector` renders nothing when `colorThemes` has one item or none. Pass the full list.
+
+Inside a provider, the controls share the provider state. Outside a provider, each control keeps its own state.
+
+## Verify it works
+
+1. Run `pnpm dev`.
+2. Open the page in the browser.
+3. Click the toggle. Confirm that the page changes and that the animation plays.
+4. In the console, run `document.documentElement.className`. Confirm that the output includes `dark` after you switch to dark.
+5. Run `localStorage.getItem('theme')`. Confirm that the value is `dark`.
+6. Reload the page. Confirm that the page loads in dark appearance with no flash.
+7. Select a palette. Confirm that the class `theme-<name>` is on `<html>`.
+
+## Pages Router
+
+1. Wrap the app in `pages/_app.tsx`.
+
+```tsx
+import type { AppProps } from 'next/app';
+import { NextUIThemeProvider } from 'uitheme-web/react';
+import '@/styles/globals.css';
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <NextUIThemeProvider
+      defaultTheme="system"
+      defaultColorTheme="default"
+      themes={['light', 'dark', 'system']}
+      colorThemes={['default', 'blue', 'green']}
+    >
+      <Component {...pageProps} />
+    </NextUIThemeProvider>
+  );
+}
+```
+
+2. Add `suppressHydrationWarning` in `pages/_document.tsx`.
+
+```tsx
+import { Html, Head, Main, NextScript } from 'next/document';
+
+export default function Document() {
+  return (
+    <Html lang="en" suppressHydrationWarning>
+      <Head />
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  );
+}
+```
+
+3. Use `useNextUITheme` in any page or component, as shown above.
+
+## Content Security Policy
+
+If your site uses a nonce-based CSP, pass the nonce to the provider. In Next.js, `headers()` is asynchronous.
+
+```tsx
+import { headers } from 'next/headers';
+import { Providers } from './providers';
+
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <body>
+        <Providers nonce={nonce}>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+Update `Providers` to accept `nonce` and pass it to `NextUIThemeProvider`.
+
+## Next steps
+
+- [Theme CSS](/setup/theme-css)
+- [Transitions](/setup/transitions)
+- [Troubleshooting](/troubleshooting)

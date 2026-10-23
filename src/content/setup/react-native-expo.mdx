@@ -1,0 +1,340 @@
+---
+title: "React Native and Expo"
+description: "This guide sets up uitheme-rn in an Expo or React Native app."
+---
+
+This guide sets up `uitheme-rn` in an Expo or React Native app. You style the app with `StyleSheet` objects and TypeScript palettes.
+
+> **Alpha.** `uitheme-rn` is version `0.1.0-alpha`. It is for early testing. Device validation is not complete. The API can change before a stable release.
+
+The root entry of the package does not need Expo, Reanimated, CSS, or a storage library. You add those parts only when you need them.
+
+## Requirements
+
+- React `>=19.2.0 <20`.
+- React Native `>=0.83.0 <0.87`. The reference app uses 0.86.3.
+- For the native controls (`uitheme-rn/expo`): an Expo SDK 56 or 57 app and `@expo/ui`. The reference app uses SDK 57.
+- For saved preferences: a storage library. This guide uses `expo-sqlite`.
+
+## Install
+
+```bash
+pnpm add uitheme-rn@alpha
+```
+
+```bash
+npm install uitheme-rn@alpha
+```
+
+```bash
+yarn add uitheme-rn@alpha
+```
+
+Install the optional parts with Expo. Expo picks the versions for your SDK.
+
+```bash
+npx expo install @expo/ui expo-sqlite
+```
+
+Add the SQLite config plugin to `app.json`. The reference app does this.
+
+```json
+{
+  "expo": {
+    "plugins": ["expo-router", "expo-sqlite"]
+  }
+}
+```
+
+Without a storage adapter, the choices stay in memory only. They are lost when the app closes.
+
+## Configure
+
+### 1. Add the provider
+
+Wrap the app in `UIThemeProvider`. In Expo Router, edit `app/_layout.tsx`.
+
+```tsx
+import { Stack } from 'expo-router';
+import { UIThemeProvider } from 'uitheme-rn';
+import Storage from 'expo-sqlite/kv-store';
+
+export default function RootLayout() {
+  return (
+    <UIThemeProvider storage={Storage} fallback={null}>
+      <Stack />
+    </UIThemeProvider>
+  );
+}
+```
+
+### Provider options
+
+| Option              | Default                    | Purpose                                |
+| ------------------- | -------------------------- | -------------------------------------- |
+| `palettes`          | `defaultPalettes`          | The palettes. See below                |
+| `defaultTheme`      | `'system'`                 | Appearance when nothing is stored      |
+| `defaultColorTheme` | First palette              | Palette when nothing is stored         |
+| `storage`           | None (memory only)         | An object with `getItem` and `setItem` |
+| `storageKey`        | `'uitheme-rn:preferences'` | Storage key for the saved record       |
+| `fallback`          | Not set                    | Rendered while preferences restore     |
+| `onStorageError`    | None                       | Receives storage errors                |
+
+Follow these rules:
+
+1. The provider reads its options once, when it mounts. To change them, change the `key` of the provider.
+2. Pass `fallback={null}` to keep the launch screen until the saved choices are restored. Omit `fallback` to render the defaults during restore.
+3. A storage adapter needs `getItem` and `setItem`. Each can be synchronous or asynchronous. AsyncStorage works. For MMKV, map `getString(key) ?? null` and `set(key, value)`.
+4. Theme choices are not secrets. You do not need SecureStore.
+5. The package never changes the app-wide `Appearance` setting.
+
+### 2. Hide the splash screen after restore
+
+When you use `fallback={null}`, hide the splash screen after the choices restore.
+
+```tsx
+import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+import { useUITheme } from 'uitheme-rn';
+
+void SplashScreen.preventAutoHideAsync();
+
+function SplashGate() {
+  const { isHydrated } = useUITheme();
+
+  useEffect(() => {
+    if (isHydrated) void SplashScreen.hideAsync();
+  }, [isHydrated]);
+
+  return null;
+}
+```
+
+Render `<SplashGate />` inside the provider. Install the library with `npx expo install expo-splash-screen`. A failed storage read also sets `isHydrated` to `true`.
+
+### 3. Use a web storage adapter in the browser
+
+`expo-sqlite` needs extra setup on the web. If your Expo app also runs on the web, add a second file with the platform suffix. The reference app uses this pattern.
+
+`src/storage.ts`:
+
+```ts
+export { default } from 'expo-sqlite/kv-store';
+```
+
+`src/storage.web.ts`:
+
+```ts
+import type { ThemeStorage } from 'uitheme-rn';
+
+const storage: ThemeStorage = {
+  getItem: (key) => globalThis.localStorage.getItem(key),
+  setItem: (key, value) => globalThis.localStorage.setItem(key, value),
+};
+
+export default storage;
+```
+
+Import `Storage from '@/storage'` or from a relative path. Metro picks the right file.
+
+## Add theme CSS or palettes
+
+A native app has no CSS in this setup. You define palettes in TypeScript.
+
+Create `src/theme.ts`.
+
+```ts
+import { defaultPalettes, themeTokens } from 'uitheme-rn';
+import type { ThemePalette } from 'uitheme-rn';
+
+export const palettes = {
+  ...defaultPalettes,
+  forest: {
+    label: 'Forest',
+    light: {
+      ...defaultPalettes.default.light,
+      accent: '#216E46',
+      onAccent: '#FFFFFF',
+    },
+    dark: {
+      ...defaultPalettes.default.dark,
+      accent: '#80D6A5',
+      onAccent: '#082517',
+    },
+  },
+} satisfies Record<string, ThemePalette>;
+
+export const tokens = themeTokens;
+```
+
+Pass the palettes to the provider. Optionally set `defaultColorTheme`.
+
+```tsx
+<UIThemeProvider
+  palettes={palettes}
+  defaultColorTheme="default"
+  storage={Storage}
+  fallback={null}
+>
+  <Stack />
+</UIThemeProvider>
+```
+
+A palette has a `label` and two color sets: `light` and `dark`. Each color set must have these seven colors:
+
+| Color           | Use                      |
+| --------------- | ------------------------ |
+| `background`    | Screen background        |
+| `surface`       | Cards and grouped rows   |
+| `text`          | Main text                |
+| `secondaryText` | Secondary text           |
+| `separator`     | Borders and dividers     |
+| `accent`        | Primary action color     |
+| `onAccent`      | Text on the accent color |
+
+Colors are React Native `ColorValue` values.
+
+`themeTokens` gives a 4-point spacing scale (`xs` to `xxl`), corner radii (`sm`, `md`, `lg`), and text styles (`title`, `headline`, `body`, `subhead`, and others). `defaultPalettes` has one palette named `default`.
+
+### Use the colors in styles
+
+```tsx
+import { Text, View } from 'react-native';
+import { useUITheme, themeTokens } from 'uitheme-rn';
+
+export function Card() {
+  const { colors } = useUITheme();
+
+  return (
+    <View
+      style={{
+        backgroundColor: colors.surface,
+        borderColor: colors.separator,
+        borderWidth: 1,
+        borderRadius: themeTokens.radius.md,
+        padding: themeTokens.spacing.md,
+      }}
+    >
+      <Text style={{ color: colors.text }}>Hello</Text>
+    </View>
+  );
+}
+```
+
+Colors change at run time. Pass them as inline style objects. A `StyleSheet.create` call runs once, so it cannot hold values that change.
+
+### Match navigation and the status bar
+
+Expo Router and React Navigation have their own theme. Map the palette colors into it, as the reference app does.
+
+```tsx
+import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+
+function Navigation({ children }: { children: React.ReactNode }) {
+  const { resolvedTheme, colors } = useUITheme();
+  const base = resolvedTheme === 'dark' ? DarkTheme : DefaultTheme;
+
+  return (
+    <ThemeProvider
+      value={{
+        ...base,
+        colors: {
+          ...base.colors,
+          primary: String(colors.accent),
+          background: String(colors.background),
+          card: String(colors.surface),
+          text: String(colors.text),
+          border: String(colors.separator),
+        },
+      }}
+    >
+      <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
+      {children}
+    </ThemeProvider>
+  );
+}
+```
+
+## Add a control
+
+### Native controls
+
+`uitheme-rn/expo` has controls that render with SwiftUI on iOS and Jetpack Compose on Android. They need `@expo/ui`.
+
+```tsx
+import { UIThemeSelector, UIColorThemeSelector } from 'uitheme-rn/expo';
+
+export function Settings() {
+  return (
+    <>
+      <UIThemeSelector />
+      <UIColorThemeSelector />
+    </>
+  );
+}
+```
+
+| Control                | Purpose                            | Props                                                    |
+| ---------------------- | ---------------------------------- | -------------------------------------------------------- |
+| `UIThemeSelector`      | Pick system, light, or dark        | `label`, `labels`, `disabled`, `testID`, `onValueChange` |
+| `UIColorThemeSelector` | Pick a palette                     | `label`, `disabled`, `testID`, `onValueChange`           |
+| `UIThemeSwitcher`      | Button that toggles light and dark | `label`, `disabled`, `onPress`                           |
+
+### Custom control
+
+Use `useUITheme()` with your own components.
+
+```tsx
+import { Pressable, Text } from 'react-native';
+import { useUITheme } from 'uitheme-rn';
+
+export function ThemeButton() {
+  const { resolvedTheme, colors, toggleTheme } = useUITheme();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={toggleTheme}
+      style={{ backgroundColor: colors.accent, padding: 12, borderRadius: 12 }}
+    >
+      <Text style={{ color: colors.onAccent }}>
+        Switch to {resolvedTheme === 'dark' ? 'light' : 'dark'}
+      </Text>
+    </Pressable>
+  );
+}
+```
+
+`useUITheme()` returns these values:
+
+| Value                       | Meaning                                               |
+| --------------------------- | ----------------------------------------------------- |
+| `theme`                     | The user choice: `'system'`, `'light'`, or `'dark'`   |
+| `resolvedTheme`             | The shown appearance: `'light'` or `'dark'`           |
+| `systemTheme`               | The device appearance                                 |
+| `colorTheme`                | The active palette name                               |
+| `colors`                    | The seven colors of the active palette and appearance |
+| `palettes`, `colorThemes`   | The palette definitions and their names               |
+| `isHydrated`                | `true` after the saved choices are restored           |
+| `setTheme`, `setColorTheme` | Set a choice. They reject unknown names               |
+| `toggleTheme`               | Switch to the opposite of the shown appearance        |
+| `toggleColorTheme`          | Go to the next palette                                |
+| `flush`                     | Wait for restore and queued writes                    |
+
+Setters update the state at once. They do not wait for storage. Palettes do not change when the appearance changes.
+
+## Verify it works
+
+1. Start the app with `npx expo start`.
+2. Open the Settings screen. Select Dark. Confirm that backgrounds, text, the header, and the status bar change.
+3. Select a palette. Confirm that the accent color changes.
+4. Select System. Change the device appearance. Confirm that the app follows and that the palette stays the same.
+5. Close the app completely. Open it again. Confirm that your choices return before the launch screen goes away.
+6. Turn on Reduce Motion in the device settings. Confirm that the app still works.
+
+## Next steps
+
+- [Transitions](/setup/transitions) for animated color changes and screen effects.
+- [NativeWind](/setup/nativewind) or [Uniwind](/setup/uniwind) for utility classes.
+- [Troubleshooting](/troubleshooting)

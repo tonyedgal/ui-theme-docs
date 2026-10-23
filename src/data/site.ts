@@ -159,7 +159,7 @@ const brandPresets: Record<BrandPresetKey, BrandConfig> = {
 
 const brandPreset: BrandPresetKey = 'primary'
 
-export const siteConfig: SiteConfig = {
+const templateSiteConfig: SiteConfig = {
   name: 'Documentation',
   description:
     'Clear, task-focused guidance for building with the product.',
@@ -172,3 +172,17 @@ export const siteConfig: SiteConfig = {
   brandPreset,
   brandPresets,
 }
+
+// Managed by Thally Cloud onboarding.
+export const siteConfig: SiteConfig = {
+  ...templateSiteConfig,
+  name: "UI-Theme Docs",
+  description: "Setup guides for UI-Theme on React, Vue, Nuxt, and React Native.",
+  repoUrl: "https://github.com/tonyedgal/ui-theme-docs",
+  links: [
+    { label: "Get started", href: "/quickstart" },
+    { label: "Support", href: "https://github.com/tonyedgal/ui-theme-docs/issues/new" },
+    { label: "GitHub", href: "https://github.com/tonyedgal/ui-theme-docs" },
+    { label: "Changelog", href: "/changelog" },
+  ],
+};
